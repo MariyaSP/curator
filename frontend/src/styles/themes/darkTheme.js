@@ -1,0 +1,37 @@
+export const darkTheme = {
+  colors: {
+    primary: '#0d1b2a',
+    primaryLight: '#1b3a5c',
+    accent: '#4a2c6a',
+    bg: '#0d1b2a',
+    cardBg: 'rgba(255,255,255,0.08)',
+    cardBorder: 'rgba(255,255,255,0.1)',
+    textPrimary: '#ffffff',
+    textSecondary: 'rgba(255,255,255,0.6)',
+    textMuted: 'rgba(255,255,255,0.3)',
+    inputBorder: 'rgba(255,255,255,0.15)',
+    inputFocus: 'rgba(255,255,255,0.6)',
+    btnBg: '#ffffff',
+    btnText: '#0d1b2a',
+    link: 'rgba(255,255,255,0.5)',
+  },
+  radii: {
+    card: '32px',
+    btn: '0px',
+    input: '0px',
+  },
+  spacing: {
+    card: '48px 40px',
+    small: '12px',
+    medium: '22px',
+    large: '40px',
+  },
+  fonts: {
+    family: '-apple-system, Segoe UI, Roboto, sans-serif',
+    title: '32px',
+    label: '13px',
+    input: '16px',
+    btn: '15px',
+    link: '14px',
+  },
+}
