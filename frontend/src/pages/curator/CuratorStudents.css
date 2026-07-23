@@ -1,0 +1,144 @@
+.students-page {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 24px 28px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.students-page h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a2332;
+  margin-bottom: 20px;
+  letter-spacing: -0.2px;
+}
+
+/* ===== БЛОК ФИЛЬТРОВ ===== */
+.filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+}
+
+.search-input {
+  padding: 8px 14px;
+  border: 1px solid #eaeef2;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #f8f9fc;
+  color: #1a2332;
+  min-width: 180px;
+  transition: border-color 0.2s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #1a2332;
+  background: #ffffff;
+}
+
+.filter-select {
+  padding: 8px 14px;
+  border: 1px solid #eaeef2;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #f8f9fc;
+  color: #1a2332;
+  min-width: 140px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #1a2332;
+  background: #ffffff;
+}
+
+.sort-btn {
+  padding: 8px 16px;
+  border: 1px solid #eaeef2;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #f8f9fc;
+  color: #1a2332;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.sort-btn:hover {
+  background: #eaeef2;
+}
+
+.sort-btn.asc {
+  border-color: #1a2332;
+  background: #1a2332;
+  color: #ffffff;
+}
+
+.sort-btn.desc {
+  border-color: #1a2332;
+  background: #1a2332;
+  color: #ffffff;
+}
+
+/* ===== ТАБЛИЦА ===== */
+.students-table-wrapper {
+  overflow-x: auto;
+}
+
+.students-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.students-table th {
+  text-align: left;
+  padding: 12px 10px;
+  font-weight: 600;
+  color: #7a8a9e;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #eaeef2;
+}
+
+.students-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #f0f2f5;
+  color: #1e293b;
+}
+
+.students-table tr:last-child td {
+  border-bottom: none;
+}
+
+.student-row:hover td {
+  background: #f8fafc;
+}
+
+.empty-row {
+  text-align: center;
+  color: #9aabbe;
+  padding: 32px !important;
+}
+
+/* ===== КОЛИЧЕСТВО ===== */
+.students-count {
+  margin-top: 16px;
+  font-size: 14px;
+  color: #7a8a9e;
+}
+
+.students-count strong {
+  color: #1a2332;
+}

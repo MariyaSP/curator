@@ -1,3 +1,20 @@
+/* ===== СТРАНИЦА ВХОДА (ФОН) ===== */
+.loginPage {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgb(17, 35, 54);
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* ===== КАРТОЧКА ВХОДА ===== */
+.loginContainer {
+  /* стили перенесены в JS для динамической темы */
+}
+
 .systemTitle {
   font-weight: 700;
   letter-spacing: 1px;

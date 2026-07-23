@@ -1,13 +1,46 @@
-fastapi
-uvicorn
-sqlalchemy
-alembic
-psycopg2-binary
-python-dotenv
-pydantic
-python-jose[cryptography]
-passlib[bcrypt]
-python-multipart
-openpyxl
-weasyprint
-email-validator
+# Основные
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-dotenv==1.0.1
+
+# База данных
+sqlalchemy==2.0.36
+alembic==1.14.1
+psycopg2-binary==2.9.10
+asyncpg==0.30.0
+
+# Аутентификация
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.2.1
+python-multipart==0.0.20
+
+# Excel и файлы
+openpyxl==3.1.5
+xlrd==2.0.1
+pandas==2.2.3
+
+# PDF
+weasyprint==63.0
+reportlab==4.2.5
+
+# Валидация
+pydantic==2.10.4
+pydantic-settings==2.7.0
+email-validator==2.2.0
+
+# Утилиты
+aiofiles==24.1.0
+Pillow==10.4.0
+
+# Вспомогательные (для разработки)
+httpx==0.28.1  # для тестирования API
+
+# Для работы с DOCX
+docxtpl==0.16.0
+python-docx==1.1.2
+docx2pdf==0.1.8
+
+# Для PDF (если понадобится)
+weasyprint==64.0
+reportlab==4.2.5
