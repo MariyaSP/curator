@@ -1,0 +1,72 @@
+.student-card {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  border: 1px solid #eef2f6;
+  gap: 16px;
+  transition: none;
+}
+
+/* ===== ФОТО КАК В ДОКУМЕНТАХ (ПРЯМОУГОЛЬНОЕ) ===== */
+.student-card-photo {
+  flex-shrink: 0;
+  width: 70px;
+  height: 90px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #f0f2f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d0d7de;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.student-card-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.student-card-avatar {
+  font-size: 32px;
+  color: #7a8a9e;
+}
+
+.student-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.student-card-number {
+  font-size: 12px;
+  color: #7a8a9e;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.student-card-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a2332;
+  margin: 4px 0 6px 0;
+}
+
+.student-card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  color: #4a5a6e;
+}
+
+.student-card-details span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

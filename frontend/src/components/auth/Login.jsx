@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../../context/ThemeContext'
 import api from '../../api/client'
@@ -7,14 +7,17 @@ import styles from './Login.module.css'
 const Login = () => {
   const { theme } = useTheme()
   const navigate = useNavigate()
+  const hasRedirected = useRef(false)  // предотвращает бесконечный цикл редиректа
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  // ===== РЕДИРЕКТ ЕСЛИ УЖЕ АВТОРИЗОВАН =====
+  // ===== РЕДИРЕКТ, ЕСЛИ УЖЕ АВТОРИЗОВАН =====
   useEffect(() => {
+    if (hasRedirected.current) return
+
     const token = localStorage.getItem('token')
     const user = localStorage.getItem('user')
 
@@ -22,6 +25,8 @@ const Login = () => {
       try {
         const parsedUser = JSON.parse(user)
         const role = parsedUser.role
+
+        hasRedirected.current = true
 
         if (role === 1) navigate('/admin', { replace: true })
         else if (role === 2) navigate('/curator', { replace: true })

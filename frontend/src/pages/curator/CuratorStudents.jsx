@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '../../api/client'
+import StudentCard from '../../components/curator/StudentCard'
 import './CuratorStudents.css'
 
 const CuratorStudents = () => {
+  const navigate = useNavigate()
   const [students, setStudents] = useState([])
   const [filteredStudents, setFilteredStudents] = useState([])
   const [loading, setLoading] = useState(true)
@@ -12,21 +15,16 @@ const CuratorStudents = () => {
   const [groupFilter, setGroupFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [genderFilter, setGenderFilter] = useState('')
-  const [addressFilter, setAddressFilter] = useState('')
+  const [regionFilter, setRegionFilter] = useState('')  // ← было addressFilter
   const [sortOrder, setSortOrder] = useState('asc')
   const [groups, setGroups] = useState([])
 
-  // ===== ФУНКЦИИ ДЛЯ ПРЕОБРАЗОВАНИЯ КОДОВ В НАЗВАНИЯ =====
   const getGenderDisplay = (code) => {
     if (!code) return '—'
-    const map = {
-      'MALE': 'Мужской',
-      'FEMALE': 'Женский'
-    }
+    const map = { 'MALE': 'Мужской', 'FEMALE': 'Женский' }
     return map[code] || code
   }
 
-  // ===== ПРЕОБРАЗОВАНИЕ ID СОЦИАЛЬНОГО СТАТУСА В ТЕКСТ =====
   const getSocialStatusDisplay = (id) => {
     if (!id) return '—'
     const map = {
@@ -47,8 +45,6 @@ const CuratorStudents = () => {
           api.get('/groups'),
         ])
 
-        console.log('Данные студентов:', studentsRes.data)
-
         const normalizedStudents = studentsRes.data.map((s) => ({
           id: s.id,
           full_name: s.full_name || '—',
@@ -58,9 +54,12 @@ const CuratorStudents = () => {
           social_status_display: getSocialStatusDisplay(s.social_status_id),
           gender_code: s.gender || null,
           gender_display: getGenderDisplay(s.gender),
+          registration_region: s.registration_region || '—',  // ← было registration_city
           registration_city: s.registration_city || '—',
           phone: s.phone || '—',
           email: s.email || '—',
+          photo: s.photo || null,
+          personal_number: s.personal_number || '—',
         }))
 
         setStudents(normalizedStudents)
@@ -97,9 +96,10 @@ const CuratorStudents = () => {
       result = result.filter((s) => s.gender_code === genderFilter)
     }
 
-    if (addressFilter) {
+    // ===== ФИЛЬТР ПО ОБЛАСТИ (было по городу) =====
+    if (regionFilter) {
       result = result.filter((s) =>
-        s.registration_city.toLowerCase().includes(addressFilter.toLowerCase())
+        s.registration_region.toLowerCase().includes(regionFilter.toLowerCase())
       )
     }
 
@@ -118,7 +118,11 @@ const CuratorStudents = () => {
     }
 
     setFilteredStudents(result)
-  }, [search, groupFilter, statusFilter, genderFilter, addressFilter, sortOrder, students])
+  }, [search, groupFilter, statusFilter, genderFilter, regionFilter, sortOrder, students])
+
+  const handleCardClick = (studentId) => {
+    navigate(`/curator/students/${studentId}`)
+  }
 
   const uniqueGroups = [...new Set(students.map((s) => s.group_name).filter(Boolean))]
   const uniqueStatuses = [...new Set(students.map((s) => s.social_status_id).filter(Boolean))]
@@ -181,12 +185,13 @@ const CuratorStudents = () => {
           </select>
         </div>
 
+        {/* ===== ФИЛЬТР ПО ОБЛАСТИ (было по городу) ===== */}
         <div className="filter-group">
           <input
             type="text"
-            placeholder="🏙️ Город прописки"
-            value={addressFilter}
-            onChange={(e) => setAddressFilter(e.target.value)}
+            placeholder="📍 Область прописки"
+            value={regionFilter}
+            onChange={(e) => setRegionFilter(e.target.value)}
             className="search-input"
           />
         </div>
@@ -201,46 +206,18 @@ const CuratorStudents = () => {
         </div>
       </div>
 
-      <div className="students-table-wrapper">
-        <table className="students-table">
-          <thead>
-            <tr>
-              <th>№</th>
-              <th>ФИО</th>
-              <th>Дата рождения</th>
-              <th>Группа</th>
-              <th>Статус</th>
-              <th>Пол</th>
-              <th>Город</th>
-              <th>Телефон</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredStudents.length === 0 ? (
-              <tr>
-                <td colSpan="8" className="empty-row">Студенты не найдены</td>
-              </tr>
-            ) : (
-              filteredStudents.map((s, idx) => (
-                <tr
-                  key={s.id}
-                  className="student-row"
-                  onClick={() => console.log('Открыть карточку студента', s.id)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <td>{idx + 1}</td>
-                  <td><strong>{s.full_name}</strong></td>
-                  <td>{s.birth_date ? new Date(s.birth_date).toLocaleDateString() : '—'}</td>
-                  <td>{s.group_name}</td>
-                  <td>{s.social_status_display}</td>
-                  <td>{s.gender_display}</td>
-                  <td>{s.registration_city}</td>
-                  <td>{s.phone}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      <div className="students-grid">
+        {filteredStudents.length === 0 ? (
+          <div className="empty-state">Студенты не найдены</div>
+        ) : (
+          filteredStudents.map((student) => (
+            <StudentCard
+              key={student.id}
+              student={student}
+              onClick={handleCardClick}
+            />
+          ))
+        )}
       </div>
 
       <div className="students-count">
