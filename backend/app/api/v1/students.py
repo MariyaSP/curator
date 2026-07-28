@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models import User, Student, Curator, GroupStudent
+from app.models import User, Student, Curator, GroupStudent, Group, Specialty
 from app.schemas import StudentCreate, StudentUpdate, StudentRead
 
 router = APIRouter(prefix="/students", tags=["Students"])
@@ -17,7 +17,7 @@ def get_all_students(
     group_id: Optional[int] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)  # 👈 ВЕРНУЛИ
 ):
     """
     Получить список студентов.
@@ -30,14 +30,11 @@ def get_all_students(
     if current_user.role == 2:  # Куратор
         curator = db.query(Curator).filter(Curator.user_id == current_user.id).first()
         if curator and curator.groups:
-            # Получаем ID групп куратора
             curator_group_ids = [g.id for g in curator.groups]
-            # Фильтруем студентов через таблицу group_students
             query = query.join(GroupStudent).filter(
                 GroupStudent.group_id.in_(curator_group_ids)
             )
         else:
-            # Если у куратора нет групп — возвращаем пустой список
             return []
     # =================================
 
@@ -62,7 +59,18 @@ def get_all_students(
         if s.group_students:
             first_group = s.group_students[0]
             if first_group.group:
-                data.group_name = first_group.group.name
+                group = first_group.group
+                data.group_name = group.name
+                
+                if group.specialty_id:
+                    specialty = db.query(Specialty).filter(
+                        Specialty.id == group.specialty_id
+                    ).first()
+                    if specialty:
+                        data.specialty_name = specialty.name
+                
+                if group.curator and group.curator.user:
+                    data.curator_name = group.curator.user.full_name
 
         if s.gender:
             data.gender = s.gender.upper()
@@ -74,12 +82,11 @@ def get_all_students(
     return result
 
 
-# Остальные эндпоинты
 @router.get("/{student_id}", response_model=StudentRead)
 def get_student_by_id(
     student_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)  # 👈 ВЕРНУЛИ
 ):
     """Получить студента по ID (с проверкой прав)."""
     student = db.query(Student).filter(Student.id == student_id).first()
@@ -101,6 +108,14 @@ def get_student_by_id(
                     detail="У вас нет доступа к этому студенту"
                 )
 
+    # Проверка прав для студента
+    if current_user.role == 3:
+        if student.user_id != current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Вы можете просматривать только свои данные"
+            )
+
     data = StudentRead.model_validate(student)
 
     if student.user:
@@ -109,7 +124,18 @@ def get_student_by_id(
     if student.group_students:
         first_group = student.group_students[0]
         if first_group.group:
-            data.group_name = first_group.group.name
+            group = first_group.group
+            data.group_name = group.name
+            
+            if group.specialty_id:
+                specialty = db.query(Specialty).filter(
+                    Specialty.id == group.specialty_id
+                ).first()
+                if specialty:
+                    data.specialty_name = specialty.name
+            
+            if group.curator and group.curator.user:
+                data.curator_name = group.curator.user.full_name
 
     if student.gender:
         data.gender = student.gender.upper()

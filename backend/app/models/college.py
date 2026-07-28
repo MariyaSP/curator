@@ -23,3 +23,4 @@ class College(Base, TimestampMixin):
     academic_years = relationship("AcademicYear", back_populates="college")
     audit_logs = relationship("AuditLog", back_populates="college")
     report_templates = relationship("ReportTemplate", back_populates="college")
+    specialties = relationship("Specialty", back_populates="college")

@@ -68,6 +68,7 @@ class StudentUpdate(BaseModel):
     is_graduated: Optional[bool] = None
 
 
+
 class StudentRead(BaseModel):
     id: int
     user_id: int
@@ -83,6 +84,8 @@ class StudentRead(BaseModel):
     is_active: bool
     is_graduated: bool
     graduation_date: Optional[datetime] = None
+    specialty_name: Optional[str] = None
+    curator_name: Optional[str] = None
 
     passport_series: Optional[str] = None
     passport_number: Optional[str] = None

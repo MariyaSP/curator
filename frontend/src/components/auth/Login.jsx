@@ -7,7 +7,7 @@ import styles from './Login.module.css'
 const Login = () => {
   const { theme } = useTheme()
   const navigate = useNavigate()
-  const hasRedirected = useRef(false)  // предотвращает бесконечный цикл редиректа
+  const hasRedirected = useRef(false)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -16,6 +16,7 @@ const Login = () => {
 
   // ===== РЕДИРЕКТ, ЕСЛИ УЖЕ АВТОРИЗОВАН =====
   useEffect(() => {
+    // Если уже перенаправляли — выходим
     if (hasRedirected.current) return
 
     const token = localStorage.getItem('token')
@@ -26,14 +27,22 @@ const Login = () => {
         const parsedUser = JSON.parse(user)
         const role = parsedUser.role
 
+        // Помечаем, что редирект выполняется
         hasRedirected.current = true
 
-        if (role === 1) navigate('/admin', { replace: true })
-        else if (role === 2) navigate('/curator', { replace: true })
-        else if (role === 3) navigate('/student', { replace: true })
-        else navigate('/login', { replace: true })
+        if (role === 1) {
+          navigate('/admin', { replace: true })
+        } else if (role === 2) {
+          navigate('/curator', { replace: true })
+        } else if (role === 3) {
+          navigate('/student', { replace: true })
+        } else {
+          navigate('/login', { replace: true })
+          hasRedirected.current = false
+        }
       } catch {
         // если данные битые — остаёмся на логине
+        hasRedirected.current = false
       }
     }
   }, [navigate])
@@ -59,10 +68,18 @@ const Login = () => {
       localStorage.setItem('token', access_token)
       localStorage.setItem('user', JSON.stringify({ id: user_id, full_name, role }))
 
-      if (role === 1) navigate('/admin', { replace: true })
-      else if (role === 2) navigate('/curator', { replace: true })
-      else if (role === 3) navigate('/student', { replace: true })
-      else navigate('/login', { replace: true })
+      // Сбрасываем флаг, чтобы при перезагрузке страницы редирект сработал
+      hasRedirected.current = false
+
+      if (role === 1) {
+        navigate('/admin', { replace: true })
+      } else if (role === 2) {
+        navigate('/curator', { replace: true })
+      } else if (role === 3) {
+        navigate('/student', { replace: true })
+      } else {
+        navigate('/login', { replace: true })
+      }
     } catch (err) {
       const message = err.response?.data?.detail || 'Ошибка входа'
       setError(typeof message === 'string' ? message : 'Ошибка входа')

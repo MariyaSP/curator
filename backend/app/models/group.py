@@ -8,6 +8,8 @@ class Group(Base, TimestampMixin):
     id = Column(Integer, primary_key=True, index=True)
     college_id = Column(Integer, ForeignKey("colleges.id"), nullable=False)
     curator_id = Column(Integer, ForeignKey("curators.id", ondelete="SET NULL"), nullable=True)
+    specialty_id = Column(Integer, ForeignKey("specialties.id"))
+    
     name = Column(String(50), unique=True, nullable=False, index=True)
     start_year = Column(Integer, nullable=False)
     end_year = Column(Integer, nullable=False)
@@ -18,3 +20,4 @@ class Group(Base, TimestampMixin):
     curator = relationship("Curator", back_populates="groups")
     group_students = relationship("GroupStudent", back_populates="group")
     event_participants = relationship("EventParticipant", back_populates="group")
+    specialty = relationship("Specialty", back_populates="groups") 

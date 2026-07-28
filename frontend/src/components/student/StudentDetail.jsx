@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../common/Button'
 import FamilyTable from './FamilyTable'
@@ -19,12 +19,16 @@ const StudentDetail = ({ studentId }) => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [isEditMode, setIsEditMode] = useState(false)
+  
+  // ===== Добавляем ref для предотвращения бесконечного цикла =====
+  const hasRedirected = useRef(false)
 
   const [showConfirm, setShowConfirm] = useState(false)
   const [confirmConfig, setConfirmConfig] = useState({ title: '', message: '', onConfirm: null })
   const [showAddModal, setShowAddModal] = useState(false)
   const [addModalType, setAddModalType] = useState('')
 
+  // ===== Загрузка данных студента =====
   useEffect(() => {
     const fetchStudent = async () => {
       try {
@@ -124,6 +128,7 @@ const StudentDetail = ({ studentId }) => {
 
   // ===== ФОРМИРУЕМ КОМПАКТНЫЕ СТРОКИ =====
   const passportString = () => {
+    if (!student) return '—'
     const parts = []
     if (student.passport_series) parts.push(`серия ${student.passport_series}`)
     if (student.passport_number) parts.push(`номер ${student.passport_number}`)
@@ -134,15 +139,48 @@ const StudentDetail = ({ studentId }) => {
   }
 
   const addressString = (type) => {
-    const addr = type === 'registration' ? student : student
+    if (!student) return '—'
     const parts = []
-    if (addr.registration_region) parts.push(addr.registration_region)
-    if (addr.registration_city) parts.push(`г. ${addr.registration_city}`)
-    if (addr.registration_street) parts.push(`ул. ${addr.registration_street}`)
-    if (addr.registration_house) parts.push(`д. ${addr.registration_house}`)
-    if (addr.registration_apartment) parts.push(`кв. ${addr.registration_apartment}`)
-    if (addr.registration_zip) parts.push(addr.registration_zip)
+    if (type === 'registration') {
+      if (student.registration_region) parts.push(student.registration_region)
+      if (student.registration_city) parts.push(`г. ${student.registration_city}`)
+      if (student.registration_street) parts.push(`ул. ${student.registration_street}`)
+      if (student.registration_house) parts.push(`д. ${student.registration_house}`)
+      if (student.registration_apartment) parts.push(`кв. ${student.registration_apartment}`)
+      if (student.registration_zip) parts.push(student.registration_zip)
+    } else {
+      if (student.actual_region) parts.push(student.actual_region)
+      if (student.actual_city) parts.push(`г. ${student.actual_city}`)
+      if (student.actual_street) parts.push(`ул. ${student.actual_street}`)
+      if (student.actual_house) parts.push(`д. ${student.actual_house}`)
+      if (student.actual_apartment) parts.push(`кв. ${student.actual_apartment}`)
+      if (student.actual_zip) parts.push(student.actual_zip)
+    }
     return parts.length > 0 ? parts.join(', ') : '—'
+  }
+
+  // ===== ПОЛУЧАЕМ ИМЯ КУРАТОРА =====
+  const getCuratorName = () => {
+    if (!student) return '—'
+    if (student.curator_name) {
+      return student.curator_name
+    }
+    if (student.curator && student.curator.user) {
+      return student.curator.user.full_name
+    }
+    return '—'
+  }
+
+  // ===== ПОЛУЧАЕМ НАЗВАНИЕ СПЕЦИАЛЬНОСТИ =====
+  const getSpecialtyName = () => {
+    if (!student) return '—'
+    if (student.specialty_name) {
+      return student.specialty_name
+    }
+    if (student.group && student.group.specialty) {
+      return student.group.specialty.name
+    }
+    return '—'
   }
 
   if (loading) return <div className="loading">Загрузка данных студента...</div>
@@ -178,8 +216,8 @@ const StudentDetail = ({ studentId }) => {
         <div className="card photo-card">
           <img src={photoUrl} alt="Фото студента" />
           <div className="photo-number">{student.personal_number}</div>
-          <div className="photo-group">{student.group_name} · {student.specialty_name || '—'}</div>
-          <div className="photo-curator">Куратор: {student.curator_name || '—'}</div>
+          <div className="photo-group">{student.group_name || '—'} · {getSpecialtyName()}</div>
+          <div className="photo-curator">Куратор: {getCuratorName()}</div>
           <button className="photo-upload-btn">📷 Загрузить фото</button>
         </div>
 
@@ -188,13 +226,13 @@ const StudentDetail = ({ studentId }) => {
           <div className="info-grid">
             <div className="field">
               <span className="label">Дата рождения</span>
-              <span className="value">{student.birth_date}</span>
-              <input type="date" defaultValue={student.birth_date} />
+              <span className="value">{student.birth_date || '—'}</span>
+              <input type="date" defaultValue={student.birth_date || ''} />
             </div>
             <div className="field">
               <span className="label">Пол</span>
               <span className="value">{student.gender === 'MALE' ? 'Мужской' : 'Женский'}</span>
-              <select defaultValue={student.gender}>
+              <select defaultValue={student.gender || 'MALE'}>
                 <option value="MALE">Мужской</option>
                 <option value="FEMALE">Женский</option>
               </select>

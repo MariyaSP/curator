@@ -22,6 +22,7 @@ from .preference import UserPreference
 from .health_group import HealthGroup
 from .social_status import SocialStatus
 from .document_type import DocumentType
+from .specialty import Specialty
 from .enums import *
 
 __all__ = [
@@ -29,6 +30,7 @@ __all__ = [
     "TimestampMixin",
     "SoftDeleteMixin",
     "College",
+    "Specialty",
     "User",
     "Student",
     "Curator",
