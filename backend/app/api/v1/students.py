@@ -66,6 +66,8 @@ def get_all_students(
 
         if s.gender:
             data.gender = s.gender.upper()
+        if s.photo:
+            data.photo = s.photo
 
         result.append(data)
 

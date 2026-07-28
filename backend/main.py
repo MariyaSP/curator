@@ -1,5 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
+
 from app.api.v1 import (
     students_router,
     auth_router,
@@ -16,7 +19,7 @@ app = FastAPI(
     description="Мультитенантная система управления студентами и кураторами"
 )
 
-# ===== НАСТРОЙКА CORS (ПРАВИЛЬНАЯ) =====
+# ===== НАСТРОЙКА CORS =====
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -30,7 +33,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Подключаем роутеры
+# ===== РАЗДАЧА СТАТИЧЕСКИХ ФАЙЛОВ =====
+# Создаём папки, если их нет
+os.makedirs("uploads/photos", exist_ok=True)
+os.makedirs("uploads/documents", exist_ok=True)
+os.makedirs("uploads/reports", exist_ok=True)
+
+# Монтируем папку uploads для доступа по URL
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+# ===== ПОДКЛЮЧАЕМ РОУТЕРЫ =====
 app.include_router(students_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(groups_router, prefix="/api/v1")
@@ -40,6 +52,7 @@ app.include_router(reports_router, prefix="/api/v1")
 app.include_router(users_router, prefix="/api/v1")
 
 
+# ===== КОРНЕВЫЕ ЭНДПОИНТЫ =====
 @app.get("/")
 async def root():
     return {
@@ -54,6 +67,7 @@ async def health():
     return {"status": "ok"}
 
 
+# ===== ЗАПУСК =====
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(

@@ -79,6 +79,7 @@ class StudentRead(BaseModel):
     gender: Optional[str] = None
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
+    photo: Optional[str] = None
     is_active: bool
     is_graduated: bool
     graduation_date: Optional[datetime] = None
