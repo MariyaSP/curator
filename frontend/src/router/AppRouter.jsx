@@ -9,6 +9,7 @@ import StudentDetail from '../pages/curator/StudentDetail'
 import CuratorCalendar from '../pages/curator/CuratorCalendar'
 import CuratorReports from '../pages/curator/CuratorReports'
 import StudentDashboard from '../pages/student/StudentDashboard'
+import StudentPage from '../pages/student/StudentPage'
 
 const AppRouter = () => {
   return (
@@ -35,7 +36,7 @@ const AppRouter = () => {
         >
           <Route index element={<CuratorStudents />} />
           <Route path="students" element={<CuratorStudents />} />
-          <Route path="students/:id" element={<StudentDetail />} />
+          <Route path="students/:id" element={<StudentPage />} />
           <Route path="calendar" element={<CuratorCalendar />} />
           <Route path="reports" element={<CuratorReports />} />
         </Route>

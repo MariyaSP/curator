@@ -1,0 +1,73 @@
+.btn-edit {
+  background: #112336;
+  color: #ffffff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-edit:hover { background: #1a2f4a; }
+
+.btn-save {
+  background: #3cb5a1;
+  color: #ffffff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-save:hover { background: #2d8f7a; }
+
+.btn-cancel {
+  background: #3cb5a1;
+  color: #ffffff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-cancel:hover { background: #2d8f7a; }
+
+.btn-danger {
+  background: #d32f2f;
+  color: #ffffff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-danger:hover { background: #b71c1c; }
+
+.btn-primary {
+  background: #112336;
+  color: #ffffff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-primary:hover { background: #1a2f4a; }
+
+.btn-edit:disabled,
+.btn-save:disabled,
+.btn-cancel:disabled,
+.btn-danger:disabled,
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

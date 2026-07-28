@@ -124,6 +124,7 @@ const CuratorStudents = () => {
     navigate(`/curator/students/${studentId}`)
   }
 
+
   const uniqueGroups = [...new Set(students.map((s) => s.group_name).filter(Boolean))]
   const uniqueStatuses = [...new Set(students.map((s) => s.social_status_id).filter(Boolean))]
   const uniqueGenders = [...new Set(students.map((s) => s.gender_code).filter(Boolean))]

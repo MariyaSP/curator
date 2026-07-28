@@ -15,17 +15,19 @@
 
 /* ===== БОКОВОЕ МЕНЮ ===== */
 .curator-sidebar {
-  width: 240px;
+  width: 220px;
   background: rgb(17, 35, 54);
   color: #ffffff;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 28px 0 20px 0;
+  align-items: flex-start;      /* ← вместо center */
+  justify-content: flex-start;  /* ← вместо space-between */
+  padding: 20px 0 20px 0;       /* ← убрал лишние отступы */
   position: fixed;
   top: 0;
   left: 0;
   height: 100vh;
+  overflow-y: auto;
 }
 
 .sidebar-title {
