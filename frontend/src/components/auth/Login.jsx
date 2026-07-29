@@ -1,92 +1,88 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../../context/ThemeContext'
-import api from '../../api/client'
+import { useAuth } from '../../context/AuthContext'
 import styles from './Login.module.css'
 
 const Login = () => {
   const { theme } = useTheme()
   const navigate = useNavigate()
+  const { user, loading: authLoading, login, error: authError } = useAuth()
   const hasRedirected = useRef(false)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [loginError, setLoginError] = useState(null)
 
   // ===== РЕДИРЕКТ, ЕСЛИ УЖЕ АВТОРИЗОВАН =====
   useEffect(() => {
-    // Если уже перенаправляли — выходим
-    if (hasRedirected.current) return
+    console.log('🔍 Login проверяет авторизацию:', {
+      authLoading,
+      hasUser: !!user,
+      userRole: user?.role,
+      hasRedirected: hasRedirected.current,
+    })
 
-    const token = localStorage.getItem('token')
-    const user = localStorage.getItem('user')
+    if (!authLoading && user && !hasRedirected.current) {
+      hasRedirected.current = true
+      console.log('✅ Пользователь уже авторизован, роль:', user.role)
 
-    if (token && user) {
-      try {
-        const parsedUser = JSON.parse(user)
-        const role = parsedUser.role
-
-        // Помечаем, что редирект выполняется
-        hasRedirected.current = true
-
-        if (role === 1) {
+      switch (user.role) {
+        case 1:
           navigate('/admin', { replace: true })
-        } else if (role === 2) {
+          break
+        case 2:
           navigate('/curator', { replace: true })
-        } else if (role === 3) {
+          break
+        case 3:
           navigate('/student', { replace: true })
-        } else {
+          break
+        default:
+          console.warn('⚠️ Неизвестная роль:', user.role)
           navigate('/login', { replace: true })
-          hasRedirected.current = false
-        }
-      } catch {
-        // если данные битые — остаёмся на логине
-        hasRedirected.current = false
       }
     }
-  }, [navigate])
+  }, [user, authLoading, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
-    setError(null)
+    setLoginError(null)
 
-    try {
-      const formData = new URLSearchParams()
-      formData.append('username', email)
-      formData.append('password', password)
+    console.log('🔐 Попытка входа:', email)
 
-      const response = await api.post('/auth/login', formData, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      })
+    const result = await login(email, password)
 
-      const { access_token, user_id, full_name, role } = response.data
-
-      localStorage.setItem('token', access_token)
-      localStorage.setItem('user', JSON.stringify({ id: user_id, full_name, role }))
-
-      // Сбрасываем флаг, чтобы при перезагрузке страницы редирект сработал
-      hasRedirected.current = false
-
-      if (role === 1) {
-        navigate('/admin', { replace: true })
-      } else if (role === 2) {
-        navigate('/curator', { replace: true })
-      } else if (role === 3) {
-        navigate('/student', { replace: true })
-      } else {
-        navigate('/login', { replace: true })
-      }
-    } catch (err) {
-      const message = err.response?.data?.detail || 'Ошибка входа'
-      setError(typeof message === 'string' ? message : 'Ошибка входа')
-    } finally {
-      setLoading(false)
+    if (result.success) {
+      console.log('✅ Вход успешен, роль:', result.user.role)
+      // Редирект произойдет автоматически в useEffect
+    } else {
+      console.log('❌ Ошибка входа:', result.error)
+      setLoginError(result.error)
     }
+
+    setLoading(false)
   }
+
+  // Пока загружается AuthContext
+  if (authLoading) {
+    return (
+      <div className={styles.loginPage}>
+        <div style={{ color: '#fff', textAlign: 'center', marginTop: '40px' }}>
+          Загрузка...
+        </div>
+      </div>
+    )
+  }
+
+  // Если пользователь уже авторизован - не показываем форму
+  if (user) {
+    return null
+  }
+
+  // Показываем ошибку из AuthContext или локальную ошибку
+  const displayError = loginError || authError
 
   return (
     <div className={styles.loginPage}>
@@ -180,7 +176,7 @@ const Login = () => {
             </div>
           </div>
 
-          {error && (
+          {displayError && (
             <div
               style={{
                 color: '#ff6b6b',
@@ -189,7 +185,7 @@ const Login = () => {
                 textAlign: 'left',
               }}
             >
-              {error}
+              {displayError}
             </div>
           )}
 

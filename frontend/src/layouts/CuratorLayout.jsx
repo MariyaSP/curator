@@ -1,15 +1,16 @@
 import React, { useState } from 'react'
 import { Link, Outlet, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import './CuratorLayout.css'
 
 const CuratorLayout = () => {
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const [active, setActive] = useState('students')
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    navigate('/login')
+    logout()                              // 1. Очищает состояние через AuthContext
+    navigate('/login', { replace: true }) // 2. Редиректит на страницу входа
   }
 
   return (
@@ -53,7 +54,7 @@ const CuratorLayout = () => {
           </div>
           <div className="header-right">
             <span className="user-info">
-              {JSON.parse(localStorage.getItem('user') || '{}').full_name || 'Куратор'}
+              {user?.full_name || 'Куратор'}
             </span>
           </div>
         </header>

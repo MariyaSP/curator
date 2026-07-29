@@ -1,3 +1,5 @@
+# backend/app/schemas/__init__.py
+
 from .enums import (
     Gender, EventType, RecurrenceType,
     CompetitionFormat, CompetitionScope, CompetitionResultType, AchievementType
@@ -5,7 +7,12 @@ from .enums import (
 from .user import UserBase, UserCreate, UserUpdate, UserRead
 from .student import (
     StudentBase, StudentCreate, StudentUpdate, StudentRead,
-    AddressRead, PassportSchema
+    AddressRead, PassportSchema,
+   
+    SocialStatusRead,
+    HealthGroupRead,
+    FamilyMemberCreate,
+    FamilyMemberRead,
 )
 from .group import GroupBase, GroupCreate, GroupUpdate, GroupRead
 from .event import EventBase, EventCreate, EventUpdate, EventRead
@@ -19,6 +26,7 @@ from .report import (
     GeneratedReportBase, GeneratedReportCreate, GeneratedReportRead,
     ReportGenerateParams
 )
+
 
 __all__ = [
     # Enums
@@ -34,6 +42,10 @@ __all__ = [
     # Student
     "StudentBase", "StudentCreate", "StudentUpdate", "StudentRead",
     "AddressRead", "PassportSchema",
+    # 🟢 ДОБАВЛЕНО
+    "SocialStatusRead",
+    "HealthGroupRead",
+    "FamilyMemberCreate",
     # Group
     "GroupBase", "GroupCreate", "GroupUpdate", "GroupRead",
     # Event
@@ -47,4 +59,5 @@ __all__ = [
     "ReportTemplateBase", "ReportTemplateCreate", "ReportTemplateUpdate", "ReportTemplateRead",
     "GeneratedReportBase", "GeneratedReportCreate", "GeneratedReportRead",
     "ReportGenerateParams",
+    "FamilyMemberRead",
 ]

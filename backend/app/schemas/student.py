@@ -1,6 +1,11 @@
-from pydantic import BaseModel, EmailStr, Field  # ← добавить BaseModel
+# backend/app/schemas/student.py
+# 🟢 ИЗМЕНЕНИЯ:
+# 1. Добавлена схема FamilyMemberRead для вывода членов семьи
+# 2. В StudentRead добавлено поле family_members
+
+from pydantic import BaseModel, EmailStr, Field
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, List  
 from app.models.enums import Gender
 
 
@@ -15,7 +20,7 @@ class AddressRead(BaseModel):
 
 class PassportSchema(BaseModel):
     series: Optional[str] = Field(None, pattern=r'^\d{4}$')
-    number: Optional[str] = Field(None, pattern=r'^\d{10}$')
+    number: Optional[str] = Field(None, pattern=r'^\d{6}$')
     issue_date: Optional[date] = None
     issued_by: Optional[str] = Field(None, max_length=255)
     department_code: Optional[str] = Field(None, pattern=r'^\d{3}-\d{3}$')
@@ -46,6 +51,28 @@ class StudentCreate(StudentBase):
     actual_address: AddressRead
 
 
+class FamilyMemberCreate(BaseModel):
+    full_name: str
+    relationship: Optional[str] = None
+    relationship_type: Optional[str] = None
+    birth_date: Optional[str] = None
+    work_place: Optional[str] = None
+    phone: Optional[str] = None 
+
+
+# 🟢 ДОБАВЛЕНО: схема для чтения члена семьи
+class FamilyMemberRead(BaseModel):
+    id: int
+    full_name: str
+    relationship_type: Optional[str] = None
+    birth_date: Optional[date] = None
+    work_place: Optional[str] = None
+    phone: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+    
 class StudentUpdate(BaseModel):
     user_id: Optional[int] = None
     college_id: Optional[int] = None
@@ -66,7 +93,10 @@ class StudentUpdate(BaseModel):
     notes: Optional[str] = None
     is_active: Optional[bool] = None
     is_graduated: Optional[bool] = None
-
+    family_members: Optional[List[FamilyMemberCreate]] = None
+    inn: Optional[str] = None
+    snils: Optional[str] = None
+    medical_policy: Optional[str] = None
 
 
 class StudentRead(BaseModel):
@@ -108,7 +138,6 @@ class StudentRead(BaseModel):
     actual_zip: Optional[str] = None
 
     social_status_id: Optional[int] = None
-
     health_group_id: Optional[int] = None
     is_disabled: bool = False
     disability_group: Optional[str] = None
@@ -123,6 +152,28 @@ class StudentRead(BaseModel):
 
     full_name: Optional[str] = None
     group_name: Optional[str] = None
+
+    # 🟢 ДОБАВЛЕНО: состав семьи
+    family_members: Optional[List[FamilyMemberRead]] = None
+
+    class Config:
+        from_attributes = True
+
+        
+class SocialStatusRead(BaseModel):
+    id: int
+    code: str
+    name: str
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class HealthGroupRead(BaseModel):
+    id: int
+    code: str
+    name: str
 
     class Config:
         from_attributes = True
