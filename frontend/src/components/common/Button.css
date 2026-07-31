@@ -1,15 +1,17 @@
 .btn-edit {
-  background: #112336;
-  color: #ffffff;
-  border: none;
+  background: transparent;
+  color: #3cb5a1;
+  border: 2px solid #3cb5a1;
   padding: 8px 20px;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
-.btn-edit:hover { background: #1a2f4a; }
+.btn-edit:hover {   
+  background: #3cb5a1;
+  color: #ffffff; }
 
 .btn-save {
   background: #3cb5a1;
@@ -25,17 +27,17 @@
 .btn-save:hover { background: #2d8f7a; }
 
 .btn-cancel {
-  background: #3cb5a1;
+  background: #2b2b2c;
   color: #ffffff;
   border: none;
   padding: 8px 20px;
   border-radius: 8px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
 }
-.btn-cancel:hover { background: #2d8f7a; }
+/* .btn-cancel:hover { background: #2d8f7a; } */
 
 .btn-danger {
   background: #d32f2f;
@@ -51,17 +53,17 @@
 .btn-danger:hover { background: #b71c1c; }
 
 .btn-primary {
-  background: #112336;
+  background: #3cb5a1;
   color: #ffffff;
   border: none;
   padding: 8px 20px;
   border-radius: 8px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
 }
-.btn-primary:hover { background: #1a2f4a; }
+/* .btn-primary:hover { background: #1a2f4a; } */
 
 .btn-edit:disabled,
 .btn-save:disabled,

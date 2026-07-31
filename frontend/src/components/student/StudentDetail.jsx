@@ -14,6 +14,7 @@ import downloadIcon from '../../assets/icons/download.png'
 import achievementsIcon from '../../assets/icons/achievements.png'
 import contestsIcon from '../../assets/icons/contests.png'
 import heroIcon from '../../assets/icons/hero.png'
+import viewIcon from '../../assets/icons/view.png'
 
 // Дефолтное фото
 const DEFAULT_PHOTO_URL = 'http://localhost:8000/uploads/photos/default_foto.png'
@@ -100,18 +101,22 @@ const StudentDetail = ({ studentId }) => {
 
   const [socialStatuses, setSocialStatuses] = useState([])
   const [healthGroups, setHealthGroups] = useState([])
+  const [documentTypes, setDocumentTypes] = useState([])  // 🟢 ПЕРЕНЕСЕНО ВНУТРЬ КОМПОНЕНТА
 
   const [refsLoaded, setRefsLoaded] = useState(false)
 
+  // 🟢 ИСПРАВЛЕНО: загрузка трёх справочников
   useEffect(() => {
     const fetchReferences = async () => {
       try {
-        const [statusesRes, groupsRes] = await Promise.all([
+        const [statusesRes, groupsRes, docTypesRes] = await Promise.all([
           api.get('/students/references/social-statuses'),
-          api.get('/students/references/health-groups')
+          api.get('/students/references/health-groups'),
+          api.get('/students/references/document-types')
         ])
         setSocialStatuses(statusesRes.data)
         setHealthGroups(groupsRes.data)
+        setDocumentTypes(docTypesRes.data)
         setRefsLoaded(true)
       } catch (err) {
         console.error('Ошибка загрузки справочников:', err)
@@ -308,7 +313,6 @@ const StudentDetail = ({ studentId }) => {
     })
   }
 
-  // ===== ОБРАБОТЧИКИ =====
   const handleAddFamily = (newMember) => {
     if (!newMember.full_name?.trim()) return
     const newId = familyMembers.length > 0 ? Math.max(...familyMembers.map(m => m.id)) + 1 : 1
@@ -335,7 +339,6 @@ const StudentDetail = ({ studentId }) => {
     const newId = Date.now()
     if (type === 'achievement') setAchievements([...achievements, { id: newId, ...data }])
     else if (type === 'contest') setContests([...contests, { id: newId, ...data }])
-    else if (type === 'document') setDocuments([...documents, { id: newId, title: data.name }])
   }
 
   const handleDeleteItem = (type, id) => {
@@ -355,6 +358,47 @@ const StudentDetail = ({ studentId }) => {
   const openAddModal = (type) => {
     setAddModalType(type)
     setShowAddModal(true)
+  }
+
+  // 🟢 Обработчик удаления документа
+  const handleDeleteDocument = async (docId) => {
+    setConfirmConfig({
+      title: 'Удаление документа',
+      message: 'Вы уверены, что хотите удалить этот документ?',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/students/${studentId}/documents/${docId}`)
+          setDocuments(documents.filter(d => d.id !== docId))
+          setShowConfirm(false)
+        } catch (err) {
+          console.error('Ошибка удаления документа:', err)
+          setShowConfirm(false)
+        }
+      }
+    })
+    setShowConfirm(true)
+  }
+
+  // 🟢 Обработчик загрузки документа
+  const handleAddDocument = async (formData) => {
+    try {
+      const docType = documentTypes.find(dt => dt.id === Number(formData.documentTypeId))
+      const title = docType ? docType.name : 'Документ'
+      
+      const fd = new FormData()
+      fd.append('title', title)
+      fd.append('document_type_id', formData.documentTypeId)
+      fd.append('file', formData.file)
+      
+      const response = await api.post(`/students/${studentId}/documents`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      
+      setDocuments([...documents, response.data])
+    } catch (err) {
+      console.error('Ошибка загрузки документа:', err)
+      alert(err.response?.data?.detail || 'Не удалось загрузить документ')
+    }
   }
 
   const handleSave = async () => {
@@ -431,6 +475,7 @@ const StudentDetail = ({ studentId }) => {
       
       setStudent(response.data)
       setFamilyMembers(response.data.family_members || [])
+      setDocuments(response.data.documents || [])
       setIsEditMode(false)
       setFieldErrors({})
       console.log('✅ Все данные сохранены')
@@ -468,6 +513,7 @@ const StudentDetail = ({ studentId }) => {
         || '',
     })
     setFamilyMembers(student.family_members || [])
+    setDocuments(student.documents || [])
     setFieldErrors({})
     setIsEditMode(false)
   }
@@ -708,25 +754,54 @@ const StudentDetail = ({ studentId }) => {
           </div>
         </div>
 
-        <div className="card right-card">
-          <div className="card-header">
-            <h3><img src={downloadIcon} alt="Документы" className="section-icon" /> Документы</h3>
-            <button className="add-btn" onClick={() => openAddModal('document')}>+</button>
-          </div>
-          <ul>
-            {documents.length > 0 ? (
-              documents.map(doc => (
-                <li key={doc.id}>
-                  <span>📄 {doc.title}</span>
-                  <img src={downloadIcon} alt="Скачать" className="doc-icon" />
-                  {isEditMode && <button className="delete-item" onClick={() => handleDeleteItem('document', doc.id)}>✕</button>}
-                </li>
-              ))
-            ) : (
-              <li style={{ color: '#7a8a9e', fontSize: '13px' }}>Нет загруженных документов</li>
-            )}
-          </ul>
+        {/* ДОКУМЕНТЫ */}
+
+      <div className="card right-card">
+        <div className="card-header">
+          <h3><img src={downloadIcon} alt="Документы" className="section-icon" /> Документы</h3>
+          <button className="add-btn" onClick={() => openAddModal('document')}>+</button>
         </div>
+        <ul>
+          {documents.length > 0 ? (
+            documents.map(doc => (
+              <li key={doc.id}>
+                <span className="doc-title" title={doc.title}>📄 {doc.title}</span>
+                <span className="doc-actions">
+                  <button 
+                    className="doc-action-btn view" 
+                    onClick={() => window.open(`http://localhost:8000/api/v1/students/${studentId}/documents/${doc.id}/view`, '_blank')}
+                    title="Просмотреть"
+                  >
+                    <img src={viewIcon} alt="Смотреть" className="doc-icon" />
+                  </button>
+                  <button 
+                    className="doc-action-btn download" 
+                    onClick={() => window.open(`http://localhost:8000/api/v1/students/${studentId}/documents/${doc.id}/download`, '_blank')}
+                    title="Скачать"
+                  >
+                    <img src={downloadIcon} alt="Скачать" className="doc-icon" />
+                  </button>
+                  {isEditMode && (
+                    <button className="delete-item" onClick={() => handleDeleteDocument(doc.id)}>✕</button>
+                  )}
+                </span>
+              </li>
+            ))
+          ) : (
+            <li style={{ color: '#7a8a9e', fontSize: '13px' }}>Нет загруженных документов</li>
+          )}
+        </ul>
+        {/* 🟢 Ссылка на архив внизу карточки */}
+        {documents.length > 0 && (
+          <div className="archive-link-wrapper">
+            <span><a 
+              href={`http://localhost:8000/api/v1/students/${studentId}/documents/archive`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >скачать</a> все документы</span>
+          </div>
+        )}
+      </div>
       </div>
 
       <div className="student-grid">
@@ -916,7 +991,19 @@ const StudentDetail = ({ studentId }) => {
       </div>
 
       <ConfirmModal isOpen={showConfirm} onClose={() => setShowConfirm(false)} onConfirm={confirmConfig.onConfirm} title={confirmConfig.title} message={confirmConfig.message} />
-      <AddModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} type={addModalType} onAdd={(data) => { handleAddItem(addModalType, data); setShowAddModal(false) }} />
+      <AddModal 
+        isOpen={showAddModal} 
+        onClose={() => setShowAddModal(false)} 
+        type={addModalType} 
+        onAdd={(data) => { 
+          if (addModalType === 'document') {
+            handleAddDocument(data)
+          } else {
+            handleAddItem(addModalType, data)
+          }
+          setShowAddModal(false)
+        }} 
+      />
     </div>
   )
 }
