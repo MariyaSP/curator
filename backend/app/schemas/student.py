@@ -97,6 +97,7 @@ class StudentUpdate(BaseModel):
     inn: Optional[str] = None
     snils: Optional[str] = None
     medical_policy: Optional[str] = None
+    
 
 
 class StudentRead(BaseModel):

@@ -9,6 +9,7 @@ const api = axios.create({
   },
 })
 
+// Добавляем токен к каждому запросу
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
   if (token) {
@@ -16,5 +17,21 @@ api.interceptors.request.use((config) => {
   }
   return config
 })
+
+// 🟢 Перехватчик ответов — ловит 401 и редиректит на логин
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      console.log('🔴 Сессия истекла, редирект на логин')
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
+    }
+    return Promise.reject(error)
+  }
+)
 
 export default api

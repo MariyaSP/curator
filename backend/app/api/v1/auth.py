@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from datetime import timedelta
 
 from app.core.database import get_db
-from app.core.security import create_access_token, verify_password
+# 🟢 ДОБАВЛЕНО: импорт get_current_user
+from app.core.security import create_access_token, verify_password, get_current_user
 from app.models import User
 from app.schemas import UserToken
 from app.core.config import settings
@@ -41,3 +42,14 @@ def login(
         full_name=user.full_name,
         user_id=user.id
     )
+
+
+@router.get("/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    """Возвращает текущего пользователя."""
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "role": current_user.role,
+    }
