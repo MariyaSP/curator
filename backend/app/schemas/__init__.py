@@ -8,11 +8,13 @@ from .user import UserBase, UserCreate, UserUpdate, UserRead
 from .student import (
     StudentBase, StudentCreate, StudentUpdate, StudentRead,
     AddressRead, PassportSchema,
-   
     SocialStatusRead,
     HealthGroupRead,
     FamilyMemberCreate,
     FamilyMemberRead,
+    DocumentRead,
+    DocumentUploadResponse,
+    DocumentTypeRead,  # 🟢 ДОБАВЛЕНО
 )
 from .group import GroupBase, GroupCreate, GroupUpdate, GroupRead
 from .event import EventBase, EventCreate, EventUpdate, EventRead
@@ -42,10 +44,13 @@ __all__ = [
     # Student
     "StudentBase", "StudentCreate", "StudentUpdate", "StudentRead",
     "AddressRead", "PassportSchema",
-    # 🟢 ДОБАВЛЕНО
     "SocialStatusRead",
     "HealthGroupRead",
     "FamilyMemberCreate",
+    "FamilyMemberRead",
+    "DocumentRead",
+    "DocumentUploadResponse",
+    "DocumentTypeRead",  # 🟢 ДОБАВЛЕНО с кавычками
     # Group
     "GroupBase", "GroupCreate", "GroupUpdate", "GroupRead",
     # Event
@@ -59,5 +64,4 @@ __all__ = [
     "ReportTemplateBase", "ReportTemplateCreate", "ReportTemplateUpdate", "ReportTemplateRead",
     "GeneratedReportBase", "GeneratedReportCreate", "GeneratedReportRead",
     "ReportGenerateParams",
-    "FamilyMemberRead",
 ]

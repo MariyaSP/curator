@@ -1,12 +1,10 @@
 # backend/app/schemas/student.py
-# 🟢 ИЗМЕНЕНИЯ:
-# 1. Добавлена схема FamilyMemberRead для вывода членов семьи
-# 2. В StudentRead добавлено поле family_members
 
 from pydantic import BaseModel, EmailStr, Field
 from datetime import date, datetime
 from typing import Optional, List  
 from app.models.enums import Gender
+from app.models import DocumentType
 
 
 class AddressRead(BaseModel):
@@ -60,7 +58,6 @@ class FamilyMemberCreate(BaseModel):
     phone: Optional[str] = None 
 
 
-# 🟢 ДОБАВЛЕНО: схема для чтения члена семьи
 class FamilyMemberRead(BaseModel):
     id: int
     full_name: str
@@ -68,6 +65,32 @@ class FamilyMemberRead(BaseModel):
     birth_date: Optional[date] = None
     work_place: Optional[str] = None
     phone: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# 🟢 Документы — ОБЪЯВЛЕНЫ ДО StudentRead
+class DocumentRead(BaseModel):
+    id: int
+    title: str
+    file_path: str
+    file_type: str
+    document_type_id: Optional[int] = None  # 🟢 Добавлено
+    uploaded_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class DocumentUploadResponse(BaseModel):
+    id: int
+    title: str
+    file_path: str
+    file_type: str
+    document_type_id: Optional[int] = None  # 🟢 Добавлено
+    uploaded_at: Optional[datetime] = None
+    message: str
 
     class Config:
         from_attributes = True
@@ -98,6 +121,14 @@ class StudentUpdate(BaseModel):
     snils: Optional[str] = None
     medical_policy: Optional[str] = None
     
+
+class DocumentTypeRead(BaseModel):
+    id: int
+    code: str
+    name: str
+
+    class Config:
+        from_attributes = True
 
 
 class StudentRead(BaseModel):
@@ -154,8 +185,8 @@ class StudentRead(BaseModel):
     full_name: Optional[str] = None
     group_name: Optional[str] = None
 
-    # 🟢 ДОБАВЛЕНО: состав семьи
     family_members: Optional[List[FamilyMemberRead]] = None
+    documents: Optional[List[DocumentRead]] = None
 
     class Config:
         from_attributes = True
@@ -178,3 +209,4 @@ class HealthGroupRead(BaseModel):
 
     class Config:
         from_attributes = True
+

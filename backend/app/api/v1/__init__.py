@@ -6,6 +6,7 @@ from .competitions import router as competitions_router
 from .reports import router as reports_router
 from .users import router as users_router
 
+
 __all__ = [
     "students_router",
     "auth_router",
@@ -14,4 +15,5 @@ __all__ = [
     "competitions_router",
     "reports_router",
     "users_router",
+   
 ]

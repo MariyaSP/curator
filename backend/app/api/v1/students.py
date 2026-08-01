@@ -1,27 +1,29 @@
 # backend/app/api/v1/students.py
-# 🟢 ИЗМЕНЕНИЯ:
-# 1. model_dump заменён на dict (Pydantic v1)
-# 2. Отладочные принты перенесены в update_student
-# 3. В flat_fields добавлены inn, snils, medical_policy
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from datetime import datetime, timezone
 
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models import User, Student, Curator, GroupStudent, Group, Specialty, FamilyMember
-from app.models import SocialStatus, HealthGroup
-from app.schemas import StudentCreate, StudentUpdate, StudentRead
+from app.models import User, Student, Curator, GroupStudent, Group, Specialty, FamilyMember, SocialStatus, HealthGroup, StudentDocument, DocumentType
+from app.schemas import StudentCreate, StudentUpdate, StudentRead, DocumentRead, DocumentUploadResponse
 from app.schemas import SocialStatusRead, HealthGroupRead
-from app.schemas import FamilyMemberRead
-from fastapi import UploadFile, File
+from app.schemas import FamilyMemberRead, DocumentTypeRead
+
+from fastapi import UploadFile, File, Form
+from fastapi.responses import FileResponse, StreamingResponse
+import zipfile
 import os
 import shutil
+from io import BytesIO
 
 
 router = APIRouter(prefix="/students", tags=["Students"])
 PHOTOS_DIR = "uploads/photos"
+DOCUMENTS_DIR = "uploads/documents"
+
 
 @router.get("/", response_model=List[StudentRead])
 def get_all_students(
@@ -32,11 +34,6 @@ def get_all_students(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Получить список студентов.
-    - Для администратора — все студенты
-    - Для куратора — только студенты его групп
-    """
     query = db.query(Student)
 
     if current_user.role == 2:
@@ -101,7 +98,6 @@ def get_social_statuses(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Получить список социальных статусов (только активные)."""
     statuses = db.query(SocialStatus).filter(SocialStatus.is_active == True).all()
     return statuses
 
@@ -111,9 +107,17 @@ def get_health_groups(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Получить список групп здоровья."""
     groups = db.query(HealthGroup).all()
     return groups
+
+
+@router.get("/references/document-types", response_model=List[DocumentTypeRead])
+def get_document_types(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    types = db.query(DocumentType).all()
+    return types
 
 
 @router.get("/{student_id}", response_model=StudentRead)
@@ -122,7 +126,6 @@ def get_student_by_id(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Получить студента по ID (с проверкой прав)."""
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Студент не найден")
@@ -175,6 +178,9 @@ def get_student_by_id(
     family = db.query(FamilyMember).filter(FamilyMember.student_id == student_id).all()
     data.family_members = [FamilyMemberRead.model_validate(m) for m in family]
 
+    docs = db.query(StudentDocument).filter(StudentDocument.student_id == student_id).all()
+    data.documents = [DocumentRead.model_validate(d) for d in docs]
+
     return data
 
 
@@ -184,12 +190,8 @@ def create_student(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Создать нового студента (только для администратора)."""
     if current_user.role != 1:
-        raise HTTPException(
-            status_code=403,
-            detail="Только администратор может создавать студентов"
-        )
+        raise HTTPException(status_code=403, detail="Только администратор может создавать студентов")
 
     user = db.query(User).filter(User.id == student_in.user_id).first()
     if not user:
@@ -199,10 +201,7 @@ def create_student(
         Student.personal_number == student_in.personal_number
     ).first()
     if existing:
-        raise HTTPException(
-            status_code=400,
-            detail="Поименный номер уже используется"
-        )
+        raise HTTPException(status_code=400, detail="Поименный номер уже используется")
 
     new_student = Student(**student_in.dict())
     db.add(new_student)
@@ -225,7 +224,6 @@ def update_student(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Обновить данные студента (с проверкой прав)."""
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Студент не найден")
@@ -239,10 +237,7 @@ def update_student(
                 for gs in student.group_students
             )
             if not is_in_group:
-                raise HTTPException(
-                    status_code=403,
-                    detail="У вас нет доступа к этому студенту"
-                )
+                raise HTTPException(status_code=403, detail="У вас нет доступа к этому студенту")
 
     if student_in.personal_number is not None:
         existing = db.query(Student).filter(
@@ -250,18 +245,9 @@ def update_student(
             Student.id != student_id
         ).first()
         if existing:
-            raise HTTPException(
-                status_code=400,
-                detail="Поименный номер уже используется другим студентом"
-            )
+            raise HTTPException(status_code=400, detail="Поименный номер уже используется другим студентом")
 
-    # 🟢 ИСПРАВЛЕНО: dict вместо model_dump (Pydantic v1)
     data = student_in.dict(exclude={'family_members'}, exclude_none=False)
-    
-    print(f"🔍 data keys: {list(data.keys())}")
-    print(f"🔍 inn from data: {data.get('inn')}")
-    print(f"🔍 snils from data: {data.get('snils')}")
-    print(f"🔍 medical_policy from data: {data.get('medical_policy')}")
     
     flat_fields = [
         'birth_date', 'citizenship', 'gender', 'email', 'phone',
@@ -273,7 +259,6 @@ def update_student(
     for field in flat_fields:
         if field in data and data[field] is not None:
             setattr(student, field, data[field])
-            print(f"  ✅ setattr student.{field} = {data[field]}")
     
     if data.get('passport'):
         passport = data['passport']
@@ -322,7 +307,6 @@ def update_student(
         db.query(FamilyMember).filter(FamilyMember.student_id == student_id).delete()
         
         for member_data in student_in.family_members:
-            # 🟢 ИСПРАВЛЕНО: dict вместо model_dump (Pydantic v1)
             member_dict = member_data if isinstance(member_data, dict) else member_data.dict()
             member_dict.pop('id', None)
             
@@ -335,16 +319,9 @@ def update_student(
                 phone=member_dict.get('phone')
             )
             db.add(new_member)
-            print(f"👨‍👩‍👧 Добавлен член семьи: {new_member.full_name} ({new_member.relationship_type})")
 
-    print(f"🔍 student.inn BEFORE commit: {student.inn}")
-    print(f"🔍 student.snils BEFORE commit: {student.snils}")
-    
     db.commit()
     db.refresh(student)
-    
-    print(f"🔍 student.inn AFTER commit: {student.inn}")
-    print(f"🔍 student.snils AFTER commit: {student.snils}")
 
     data = StudentRead.model_validate(student)
     if student.user:
@@ -355,6 +332,9 @@ def update_student(
     family = db.query(FamilyMember).filter(FamilyMember.student_id == student_id).all()
     data.family_members = [FamilyMemberRead.model_validate(m) for m in family]
 
+    docs = db.query(StudentDocument).filter(StudentDocument.student_id == student_id).all()
+    data.documents = [DocumentRead.model_validate(d) for d in docs]
+
     return data
 
 
@@ -364,12 +344,8 @@ def delete_student(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Удалить студента (только для администратора)."""
     if current_user.role != 1:
-        raise HTTPException(
-            status_code=403,
-            detail="Только администратор может удалять студентов"
-        )
+        raise HTTPException(status_code=403, detail="Только администратор может удалять студентов")
 
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
@@ -385,12 +361,6 @@ async def upload_student_photo(
     photo: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    """
-    Загрузка/обновление фото студента.
-    Файл сохраняется как: uploads/photos/{personal_number}.{ext}
-    Старое фото (с любым расширением) удаляется.
-    """
-    
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Студент не найден")
@@ -417,7 +387,6 @@ async def upload_student_photo(
         old_filepath = os.path.join(PHOTOS_DIR, f"{personal_number}{ext}")
         if os.path.exists(old_filepath):
             os.remove(old_filepath)
-            print(f"🗑️ Удалено старое фото: {old_filepath}")
     
     with open(new_filepath, "wb") as buffer:
         shutil.copyfileobj(photo.file, buffer)
@@ -427,11 +396,177 @@ async def upload_student_photo(
     db.commit()
     db.refresh(student)
     
-    print(f"✅ Фото сохранено: {new_filepath}")
-    print(f"📝 БД обновлена: {photo_url}")
-    
     return {
         "photo_url": photo_url,
         "filename": new_filename,
         "message": "Фото успешно загружено"
     }
+
+
+# ========== ДОКУМЕНТЫ ==========
+
+@router.post("/{student_id}/documents", response_model=DocumentUploadResponse)
+async def upload_document(
+    student_id: int,
+    title: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Студент не найден")
+
+    allowed_types = ['application/pdf', 'image/jpeg', 'image/png']
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Разрешены только PDF, JPG, JPEG, PNG")
+
+    ext_map = {
+        'application/pdf': '.pdf',
+        'image/jpeg': '.jpg',
+        'image/png': '.png'
+    }
+    ext = ext_map.get(file.content_type, '.jpg')
+    safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+    filename = f"{student.personal_number}_{safe_title}{ext}"
+    
+    os.makedirs(DOCUMENTS_DIR, exist_ok=True)
+    file_path = os.path.join(DOCUMENTS_DIR, filename)
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    doc = StudentDocument(
+        student_id=student_id,
+        title=title,
+        file_path=f"/uploads/documents/{filename}",
+        file_type=ext.replace('.', ''),
+        uploaded_at=datetime.now(timezone.utc)
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+    
+    return DocumentUploadResponse(
+        id=doc.id,
+        title=doc.title,
+        file_path=doc.file_path,
+        file_type=doc.file_type,
+        uploaded_at=doc.uploaded_at,
+        message="Документ успешно загружен"
+    )
+
+
+@router.get("/{student_id}/documents", response_model=List[DocumentRead])
+def get_student_documents(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    docs = db.query(StudentDocument).filter(StudentDocument.student_id == student_id).all()
+    return docs
+
+
+@router.get("/{student_id}/documents/{doc_id}/view")
+def view_document(
+    student_id: int,
+    doc_id: int,
+    db: Session = Depends(get_db)
+):
+    doc = db.query(StudentDocument).filter(
+        StudentDocument.id == doc_id,
+        StudentDocument.student_id == student_id
+    ).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Документ не найден")
+    
+    file_path = os.path.join(os.getcwd(), DOCUMENTS_DIR, os.path.basename(doc.file_path))
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    
+    media_type_map = {
+        'pdf': 'application/pdf',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png'
+    }
+    media_type = media_type_map.get(doc.file_type, 'application/octet-stream')
+    
+    return FileResponse(file_path, media_type=media_type)
+
+
+@router.get("/{student_id}/documents/{doc_id}/download")
+def download_document(
+    student_id: int,
+    doc_id: int,
+    db: Session = Depends(get_db)
+):
+    doc = db.query(StudentDocument).filter(
+        StudentDocument.id == doc_id,
+        StudentDocument.student_id == student_id
+    ).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Документ не найден")
+    
+    file_path = os.path.join(os.getcwd(), DOCUMENTS_DIR, os.path.basename(doc.file_path))
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    
+    filename = os.path.basename(doc.file_path)
+    return FileResponse(file_path, media_type='application/octet-stream', filename=filename)
+
+
+@router.get("/{student_id}/documents/archive")
+def download_all_documents_archive(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Студент не найден")
+    
+    docs = db.query(StudentDocument).filter(StudentDocument.student_id == student_id).all()
+    
+    if not docs:
+        raise HTTPException(status_code=404, detail="Нет документов для скачивания")
+    
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for doc in docs:
+            file_path = os.path.join(os.getcwd(), DOCUMENTS_DIR, os.path.basename(doc.file_path))
+            if os.path.exists(file_path):
+                zf.write(file_path, os.path.basename(file_path))
+    
+    zip_buffer.seek(0)
+    
+    return StreamingResponse(
+        zip_buffer,
+        media_type='application/zip',
+        headers={
+            'Content-Disposition': f'attachment; filename="documents_{student.personal_number}.zip"'
+        }
+    )
+
+
+@router.delete("/{student_id}/documents/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_document(
+    student_id: int,
+    doc_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    doc = db.query(StudentDocument).filter(
+        StudentDocument.id == doc_id,
+        StudentDocument.student_id == student_id
+    ).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Документ не найден")
+    
+    file_path = os.path.join(os.getcwd(), DOCUMENTS_DIR, os.path.basename(doc.file_path))
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    
+    db.delete(doc)
+    db.commit()
+    return None

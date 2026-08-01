@@ -550,6 +550,237 @@ const StudentDetail = ({ studentId }) => {
     }
   }
 
+  const handlePrint = () => {
+  const printWindow = window.open('', '_blank', 'width=900,height=700')
+  if (!printWindow) {
+    alert('Пожалуйста, разрешите всплывающие окна для этого сайта')
+    return
+  }
+
+  const photoUrlFull = student.photo 
+    ? `http://localhost:8000${student.photo}` 
+    : null
+
+  const printHTML = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Карточка студента ${student.full_name || ''}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+          font-family: 'Times New Roman', serif; 
+          font-size: 16pt; 
+          color: #000;
+          padding: 15mm 20mm;
+  
+        }
+        .header { 
+          display: flex; 
+          align-items: flex-start;
+          gap: 20px;
+          border-bottom: 2px solid #000;
+          padding-bottom: 15px;
+          margin-bottom: 15px;
+        }
+        .photo-frame {
+          width: 30mm;
+          height: 40mm;
+          border: 1px solid #000;
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 9pt;
+          color: #999;
+          text-align: center;
+          overflow: hidden;
+        }
+        .photo-frame img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .header-info { flex: 1; }
+        .header-info h1 { font-size: 16pt; margin-bottom: 5px; }
+        .header-info p { font-size: 11pt; margin-bottom: 2px; }
+        .section {
+          margin-bottom: 12px;
+        }
+        .section h3 {
+          font-size: 16pt;
+          border-bottom: 1px solid #000;
+          margin-bottom: 8px;
+          margin-top: 25px;
+          padding-bottom: 3px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+        .grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 4px 30px;
+        }
+        .grid-3 {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 4px 20px;
+        }
+        .field { 
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 2px 0;
+          font-size: 11pt;
+        }
+        .field .label { 
+          font-weight: bold; 
+          font-size: 13pt;
+          color: #333;
+          display: block;
+        }
+        .field .value { 
+          border-bottom: 1px solid #7d7d7d;
+          min-height: 18px;
+          padding: 1px 0;
+        }
+        .family-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 6px;
+        }
+        .family-table th {
+          font-size: 9pt;
+          text-align: left;
+          border-bottom: 1px solid #000;
+          padding: 4px 6px;
+          font-weight: bold;
+        }
+        .family-table td {
+          font-size: 9pt;
+          padding: 4px 6px;
+          border-bottom: 1px dotted #ccc;
+        }
+        .footer {
+          margin-top: 30px;
+          display: flex;
+          justify-content: space-between;
+          font-size: 11pt;
+        }
+        .footer div { 
+          border-top: 1px solid #000; 
+          padding-top: 4px;
+          min-width: 120px;
+          text-align: center;
+        }
+        .flexi{
+        display: flex;
+        gap: 20px;
+        }
+        @media print {
+          body { -webkit-print-color-adjust: exact; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div class="photo-frame">
+          
+        </div>
+        <div class="header-info">
+          <h1>${student.full_name || '—'}</h1>
+          <p><strong>Номер:</strong> ${student.personal_number || '—'} &nbsp;|&nbsp; <strong>Группа:</strong> ${student.group_name || '—'}</p>
+          <p><strong>Специальность:</strong> ${getSpecialtyName()}</p>
+          <p><strong>Куратор:</strong> ${getCuratorName()}</p>
+          <p><strong>Статус:</strong> ${student.is_active ? 'Обучается' : 'Не активен'}</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Личные данные</h3>
+        <div class="grid">
+          <div class="field"><span class="label">Дата рождения</span><span class="value">${student.birth_date || '—'}</span></div>
+          <div class="field"><span class="label">Пол</span><span class="value">${student.gender === 'MALE' ? 'Мужской' : 'Женский'}</span></div>
+          <div class="field"><span class="label">Гражданство</span><span class="value">${student.citizenship || '—'}</span></div>
+          <div class="field"><span class="label">Email</span><span class="value">${student.email || '—'}</span></div>
+          <div class="field"><span class="label">Телефон</span><span class="value">${student.phone || '—'}</span></div>
+          <div class="field"><span class="label">Социальный статус</span><span class="value">${getSocialStatusLabel(student.social_status_id)}</span></div>
+          <div class="field"><span class="label">Группа здоровья</span><span class="value">${getHealthGroupLabel(student.health_group_id)}</span></div>
+          ${student.is_disabled ? `<div class="field"><span class="label">Инвалидность</span><span class="value">${student.disability_group || 'Да'}</span></div>` : ''}
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Документы</h3>
+        <div class="grid-3">
+          <div class="field"><span class="label">ИНН</span><span class="value">${student.inn || '—'}</span></div>
+          <div class="field"><span class="label">СНИЛС</span><span class="value">${student.snils || '—'}</span></div>
+          <div class="field"><span class="label">Мед. полис</span><span class="value">${student.medical_policy || '—'}</span></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Паспортные данные</h3>
+        <div class="flexi">
+          <div class="field"><span class="label">Серия</span><span class="value">${student.passport_series || '—'}</span></div>
+          <div class="field"><span class="label">Номер</span><span class="value">${student.passport_number || '—'}</span></div>
+          <div class="field"><span class="label">Дата выдачи</span><span class="value">${student.passport_issue_date || '—'}</span></div>
+          
+        </div>
+        <div class="field" style="margin-top:6px;"><span class="label">Кем выдан</span><span class="value">${student.passport_issued_by || '—'}</span></div>
+        <div class="field"><span class="label">Код подразд.</span><span class="value">${student.passport_department_code || '—'}</span></div>
+      </div>
+
+      <div class="section">
+        <h3>Адреса</h3>
+        <div class="grid">
+          <div class="field" style="grid-column: span 2;"><span class="label">Адрес регистрации</span><span class="value">${addressString('registration')}</span></div>
+          <div class="field" style="grid-column: span 2;"><span class="label">Фактический адрес</span><span class="value">${addressString('actual')}</span></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Состав семьи</h3>
+        ${familyMembers.length > 0 ? `
+          <table class="family-table">
+            <tr>
+              <th>ФИО</th>
+              <th>Родство</th>
+              <th>Дата рождения</th>
+              <th>Место работы</th>
+              <th>Телефон</th>
+            </tr>
+            ${familyMembers.map(m => `
+              <tr>
+                <td>${m.full_name}</td>
+                <td>${m.relationship_type || m.relationship || '—'}</td>
+                <td>${m.birth_date || '—'}</td>
+                <td>${m.work_place || '—'}</td>
+                <td>${m.phone || '—'}</td>
+              </tr>
+            `).join('')}
+          </table>
+        ` : '<p>Нет данных</p>'}
+      </div>
+
+      <div class="footer">
+        <div>Дата: ___________</div>
+        <div>Подпись куратора: ___________</div>
+      </div>
+
+      <script>
+        window.onload = () => { window.print(); }
+      </script>
+    </body>
+    </html>
+  `
+
+  printWindow.document.write(printHTML)
+  printWindow.document.close()
+}
+
+
   const passportString = () => {
     if (!student) return '—'
     const parts = []
@@ -638,11 +869,42 @@ const StudentDetail = ({ studentId }) => {
           <div className="photo-number">{student.personal_number}</div>
           <div className="photo-group">{student.group_name || '—'} · {getSpecialtyName()}</div>
           <div className="photo-curator">Куратор: {getCuratorName()}</div>
-          <button className="photo-upload-btn" onClick={handleUploadClick} disabled={isUploadingPhoto}>
-            {isUploadingPhoto ? '⏳ Загрузка...' : '📷 Загрузить фото'}
-          </button>
-          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={handleFileChange} style={{ display: 'none' }} />
-        </div>
+          
+          {/* Кнопки в одну линию */}
+          <div style={{ display: 'flex', gap: '10px', marginTop: '10px', justifyContent: 'center' }}>
+              <button 
+                  className="photo-upload-btn" 
+                  onClick={handleUploadClick} 
+                  disabled={isUploadingPhoto}
+              >
+                  {isUploadingPhoto ? '⏳ Загрузка...' : '📷 Загрузить фото'}
+              </button>
+              
+              <button 
+                  className="photo-upload-btn"
+                  onClick={handlePrint}
+                  style={{ 
+                      background: '#6c757d',
+                      color: 'white',
+                      border: 'none',
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '14px'
+                  }}
+              >
+                  🖨️ Печать карточки
+              </button>
+          </div>
+          
+          <input 
+              ref={fileInputRef} 
+              type="file" 
+              accept="image/jpeg,image/png,image/gif,image/webp" 
+              onChange={handleFileChange} 
+              style={{ display: 'none' }} 
+          />
+      </div>
 
         <div className="card personal-card">
           <div className="card-header"><h3>Личные данные</h3></div>
