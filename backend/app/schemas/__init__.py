@@ -14,7 +14,9 @@ from .student import (
     FamilyMemberRead,
     DocumentRead,
     DocumentUploadResponse,
-    DocumentTypeRead,  # 🟢 ДОБАВЛЕНО
+    DocumentTypeRead, 
+    AchievementCreate,
+    AchievementRead,
 )
 from .group import GroupBase, GroupCreate, GroupUpdate, GroupRead
 from .event import EventBase, EventCreate, EventUpdate, EventRead
@@ -63,5 +65,5 @@ __all__ = [
     # Report
     "ReportTemplateBase", "ReportTemplateCreate", "ReportTemplateUpdate", "ReportTemplateRead",
     "GeneratedReportBase", "GeneratedReportCreate", "GeneratedReportRead",
-    "ReportGenerateParams",
+    "ReportGenerateParams", "AchievementCreate", "AchievementRead"
 ]

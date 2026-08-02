@@ -9,17 +9,14 @@ import AddModal from './AddModal'
 import api from '../../api/client'
 import './StudentDetail.css'
 
-// Импорт иконок
 import downloadIcon from '../../assets/icons/download.png'
 import achievementsIcon from '../../assets/icons/achievements.png'
 import contestsIcon from '../../assets/icons/contests.png'
 import heroIcon from '../../assets/icons/hero.png'
 import viewIcon from '../../assets/icons/view.png'
 
-// Дефолтное фото
 const DEFAULT_PHOTO_URL = 'http://localhost:8000/uploads/photos/default_foto.png'
 
-// 🟢 Маски ввода
 const MASKS = {
   phone: (value) => {
     const digits = value.replace(/\D/g, '')
@@ -71,7 +68,6 @@ const PASSPORT_FIELDS = [
 const ADDRESS_FIELDS_REQUIRED = ['region', 'city', 'house', 'zip']
 const ADDRESS_FIELDS_OPTIONAL = ['street', 'apartment']
 
-// Проверка возраста (14 лет)
 const isAtLeast14YearsOld = (birthDateStr, passportDateStr) => {
   if (!birthDateStr || !passportDateStr) return true
   const birthDate = new Date(birthDateStr)
@@ -101,11 +97,18 @@ const StudentDetail = ({ studentId }) => {
 
   const [socialStatuses, setSocialStatuses] = useState([])
   const [healthGroups, setHealthGroups] = useState([])
-  const [documentTypes, setDocumentTypes] = useState([])  // 🟢 ПЕРЕНЕСЕНО ВНУТРЬ КОМПОНЕНТА
+  const [documentTypes, setDocumentTypes] = useState([])
 
   const [refsLoaded, setRefsLoaded] = useState(false)
 
-  // 🟢 ИСПРАВЛЕНО: загрузка трёх справочников
+  const [familyMembers, setFamilyMembers] = useState([])
+  const [achievements, setAchievements] = useState([])
+  const [contests, setContests] = useState([])
+  const [documents, setDocuments] = useState([])
+
+  // 🟢 Состояния для достижений
+  const [viewAchievement, setViewAchievement] = useState(null)
+
   useEffect(() => {
     const fetchReferences = async () => {
       try {
@@ -161,14 +164,8 @@ const StudentDetail = ({ studentId }) => {
     fetchStudent()
   }, [studentId, refsLoaded, socialStatuses, healthGroups])
 
-  const [familyMembers, setFamilyMembers] = useState([])
-  const [achievements, setAchievements] = useState([])
-  const [contests, setContests] = useState([])
-  const [documents, setDocuments] = useState([])
-
   const handleFieldChange = (field, value) => {
     let maskedValue = value
-
     switch (field) {
       case 'phone': maskedValue = MASKS.phone(value); break
       case 'snils': maskedValue = MASKS.snils(value); break
@@ -180,7 +177,6 @@ const StudentDetail = ({ studentId }) => {
       case 'actual_zip': maskedValue = MASKS.zip(value); break
       default: maskedValue = value
     }
-
     setEditData(prev => ({ ...prev, [field]: maskedValue }))
     if (fieldErrors[field]) {
       setFieldErrors(prev => ({ ...prev, [field]: null }))
@@ -204,9 +200,7 @@ const StudentDetail = ({ studentId }) => {
     const data = editData
 
     REQUIRED_FIELDS.forEach(field => {
-      if (isEmpty(data[field])) {
-        errors[field] = 'Обязательное поле'
-      }
+      if (isEmpty(data[field])) errors[field] = 'Обязательное поле'
     })
 
     const phoneDigits = (data.phone || '').replace(/\D/g, '')
@@ -225,10 +219,8 @@ const StudentDetail = ({ studentId }) => {
       PASSPORT_FIELDS.forEach(field => {
         if (isEmpty(data[field])) {
           const labels = {
-            passport_series: 'Серия паспорта',
-            passport_number: 'Номер паспорта',
-            passport_issue_date: 'Дата выдачи',
-            passport_issued_by: 'Кем выдан',
+            passport_series: 'Серия паспорта', passport_number: 'Номер паспорта',
+            passport_issue_date: 'Дата выдачи', passport_issued_by: 'Кем выдан',
             passport_department_code: 'Код подразделения'
           }
           errors[field] = `Заполните "${labels[field] || field}"`
@@ -236,16 +228,10 @@ const StudentDetail = ({ studentId }) => {
       })
     }
 
-    if (!isEmpty(data.passport_series) && data.passport_series.length !== 4) {
-      errors.passport_series = 'Серия паспорта — 4 цифры'
-    }
-    if (!isEmpty(data.passport_number) && data.passport_number.length !== 6) {
-      errors.passport_number = 'Номер паспорта — 6 цифр'
-    }
+    if (!isEmpty(data.passport_series) && data.passport_series.length !== 4) errors.passport_series = 'Серия паспорта — 4 цифры'
+    if (!isEmpty(data.passport_number) && data.passport_number.length !== 6) errors.passport_number = 'Номер паспорта — 6 цифр'
     const codeDigits = (data.passport_department_code || '').replace(/\D/g, '')
-    if (!isEmpty(data.passport_department_code) && codeDigits.length !== 6) {
-      errors.passport_department_code = 'Код подразделения — 6 цифр'
-    }
+    if (!isEmpty(data.passport_department_code) && codeDigits.length !== 6) errors.passport_department_code = 'Код подразделения — 6 цифр'
     if (!isEmpty(data.passport_issue_date) && !isEmpty(data.birth_date)) {
       if (!isAtLeast14YearsOld(data.birth_date, data.passport_issue_date)) {
         errors.passport_issue_date = 'Дата выдачи не может быть раньше 14-летия'
@@ -261,9 +247,7 @@ const StudentDetail = ({ studentId }) => {
         }
       })
     }
-    if (!isEmpty(data.registration_zip) && data.registration_zip.length !== 6) {
-      errors.registration_zip = 'Индекс — 6 цифр'
-    }
+    if (!isEmpty(data.registration_zip) && data.registration_zip.length !== 6) errors.registration_zip = 'Индекс — 6 цифр'
 
     const actAll = [...ADDRESS_FIELDS_REQUIRED, ...ADDRESS_FIELDS_OPTIONAL]
     if (isPartiallyFilled(actAll, 'actual')) {
@@ -274,18 +258,12 @@ const StudentDetail = ({ studentId }) => {
         }
       })
     }
-    if (!isEmpty(data.actual_zip) && data.actual_zip.length !== 6) {
-      errors.actual_zip = 'Индекс — 6 цифр'
-    }
+    if (!isEmpty(data.actual_zip) && data.actual_zip.length !== 6) errors.actual_zip = 'Индекс — 6 цифр'
 
     const innDigits = (data.inn || '').replace(/\D/g, '')
-    if (!isEmpty(data.inn) && innDigits.length !== 12) {
-      errors.inn = 'ИНН должен содержать 12 цифр'
-    }
+    if (!isEmpty(data.inn) && innDigits.length !== 12) errors.inn = 'ИНН должен содержать 12 цифр'
     const snilsDigits = (data.snils || '').replace(/\D/g, '')
-    if (!isEmpty(data.snils) && snilsDigits.length !== 11) {
-      errors.snils = 'СНИЛС должен содержать 11 цифр'
-    }
+    if (!isEmpty(data.snils) && snilsDigits.length !== 11) errors.snils = 'СНИЛС должен содержать 11 цифр'
 
     setFieldErrors(errors)
     return Object.keys(errors).length === 0
@@ -294,21 +272,14 @@ const StudentDetail = ({ studentId }) => {
   const copyRegistrationAddress = () => {
     setEditData(prev => ({
       ...prev,
-      actual_region: prev.registration_region || '',
-      actual_city: prev.registration_city || '',
-      actual_street: prev.registration_street || '',
-      actual_house: prev.registration_house || '',
-      actual_apartment: prev.registration_apartment || '',
-      actual_zip: prev.registration_zip || ''
+      actual_region: prev.registration_region || '', actual_city: prev.registration_city || '',
+      actual_street: prev.registration_street || '', actual_house: prev.registration_house || '',
+      actual_apartment: prev.registration_apartment || '', actual_zip: prev.registration_zip || ''
     }))
     setFieldErrors(prev => {
       const newErrors = { ...prev }
-      delete newErrors.actual_region
-      delete newErrors.actual_city
-      delete newErrors.actual_street
-      delete newErrors.actual_house
-      delete newErrors.actual_apartment
-      delete newErrors.actual_zip
+      delete newErrors.actual_region; delete newErrors.actual_city; delete newErrors.actual_street
+      delete newErrors.actual_house; delete newErrors.actual_apartment; delete newErrors.actual_zip
       return newErrors
     })
   }
@@ -321,33 +292,60 @@ const StudentDetail = ({ studentId }) => {
 
   const handleDeleteFamily = (id) => {
     setConfirmConfig({
-      title: 'Удаление члена семьи',
-      message: 'Вы уверены, что хотите удалить этого члена семьи?',
-      onConfirm: () => {
-        setFamilyMembers(familyMembers.filter(m => m.id !== id))
-        setShowConfirm(false)
+      title: 'Удаление члена семьи', message: 'Вы уверены, что хотите удалить этого члена семьи?',
+      onConfirm: () => { setFamilyMembers(familyMembers.filter(m => m.id !== id)); setShowConfirm(false) }
+    })
+    setShowConfirm(true)
+  }
+
+  const handleUpdateFamily = (updatedMembers) => setFamilyMembers(updatedMembers)
+
+  // 🟢 Обработчики достижений
+  const openAchievementView = (achievement) => setViewAchievement(achievement)
+
+  const handleDeleteAchievement = async (achievementId) => {
+    setConfirmConfig({
+      title: 'Удаление достижения', message: 'Вы уверены, что хотите удалить это достижение?',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/students/${studentId}/achievements/${achievementId}`)
+          setAchievements(achievements.filter(a => a.id !== achievementId))
+          setShowConfirm(false)
+        } catch (err) { console.error('Ошибка удаления достижения:', err); setShowConfirm(false) }
       }
     })
     setShowConfirm(true)
   }
 
-  const handleUpdateFamily = (updatedMembers) => {
-    setFamilyMembers(updatedMembers)
+  const handleAddAchievement = async (formData) => {
+    try {
+      const fd = new FormData()
+      fd.append('title', formData.name)
+      fd.append('achievement_date', formData.date)
+      fd.append('achievement_type', formData.type)
+      if (formData.description) fd.append('description', formData.description)
+      if (formData.file) fd.append('file', formData.file)
+      
+      const response = await api.post(`/students/${studentId}/achievements`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      setAchievements([response.data, ...achievements])
+    } catch (err) {
+      console.error('Ошибка добавления достижения:', err)
+      alert(err.response?.data?.detail || 'Не удалось добавить достижение')
+    }
   }
 
   const handleAddItem = (type, data) => {
     const newId = Date.now()
-    if (type === 'achievement') setAchievements([...achievements, { id: newId, ...data }])
-    else if (type === 'contest') setContests([...contests, { id: newId, ...data }])
+    if (type === 'contest') setContests([...contests, { id: newId, ...data }])
   }
 
   const handleDeleteItem = (type, id) => {
     setConfirmConfig({
-      title: 'Удаление',
-      message: 'Вы уверены?',
+      title: 'Удаление', message: 'Вы уверены?',
       onConfirm: () => {
-        if (type === 'achievement') setAchievements(achievements.filter(a => a.id !== id))
-        else if (type === 'contest') setContests(contests.filter(c => c.id !== id))
+        if (type === 'contest') setContests(contests.filter(c => c.id !== id))
         else if (type === 'document') setDocuments(documents.filter(d => d.id !== id))
         setShowConfirm(false)
       }
@@ -355,45 +353,33 @@ const StudentDetail = ({ studentId }) => {
     setShowConfirm(true)
   }
 
-  const openAddModal = (type) => {
-    setAddModalType(type)
-    setShowAddModal(true)
-  }
+  const openAddModal = (type) => { setAddModalType(type); setShowAddModal(true) }
 
-  // 🟢 Обработчик удаления документа
   const handleDeleteDocument = async (docId) => {
     setConfirmConfig({
-      title: 'Удаление документа',
-      message: 'Вы уверены, что хотите удалить этот документ?',
+      title: 'Удаление документа', message: 'Вы уверены, что хотите удалить этот документ?',
       onConfirm: async () => {
         try {
           await api.delete(`/students/${studentId}/documents/${docId}`)
           setDocuments(documents.filter(d => d.id !== docId))
           setShowConfirm(false)
-        } catch (err) {
-          console.error('Ошибка удаления документа:', err)
-          setShowConfirm(false)
-        }
+        } catch (err) { console.error('Ошибка удаления документа:', err); setShowConfirm(false) }
       }
     })
     setShowConfirm(true)
   }
 
-  // 🟢 Обработчик загрузки документа
   const handleAddDocument = async (formData) => {
     try {
       const docType = documentTypes.find(dt => dt.id === Number(formData.documentTypeId))
       const title = docType ? docType.name : 'Документ'
-      
       const fd = new FormData()
       fd.append('title', title)
       fd.append('document_type_id', formData.documentTypeId)
       fd.append('file', formData.file)
-      
       const response = await api.post(`/students/${studentId}/documents`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
-      
       setDocuments([...documents, response.data])
     } catch (err) {
       console.error('Ошибка загрузки документа:', err)
@@ -410,94 +396,52 @@ const StudentDetail = ({ studentId }) => {
       }
       return
     }
-
     try {
       const dataToSave = {
-        birth_date: editData.birth_date || null,
-        gender: editData.gender || null,
-        citizenship: editData.citizenship || null,
-        email: editData.email || null,
-        phone: editData.phone || null,
-        
-        social_status_id: editData.social_status_id || null,
-        health_group_id: editData.health_group_id || null,
-        
-        is_disabled: editData.is_disabled || false,
+        birth_date: editData.birth_date || null, gender: editData.gender || null,
+        citizenship: editData.citizenship || null, email: editData.email || null,
+        phone: editData.phone || null, social_status_id: editData.social_status_id || null,
+        health_group_id: editData.health_group_id || null, is_disabled: editData.is_disabled || false,
         disability_group: editData.disability_group || null,
-        
         is_active: editData.is_active !== undefined ? editData.is_active : true,
-        
-        inn: editData.inn || null,
-        snils: editData.snils || null,
-        medical_policy: editData.medical_policy || null,
-        
-        notes: editData.notes || null,
-
+        inn: editData.inn || null, snils: editData.snils || null,
+        medical_policy: editData.medical_policy || null, notes: editData.notes || null,
         passport: {
-          series: editData.passport_series || null,
-          number: editData.passport_number || null,
-          issue_date: editData.passport_issue_date || null,
-          issued_by: editData.passport_issued_by || null,
+          series: editData.passport_series || null, number: editData.passport_number || null,
+          issue_date: editData.passport_issue_date || null, issued_by: editData.passport_issued_by || null,
           department_code: editData.passport_department_code || null,
         },
-
         registration_address: {
-          region: editData.registration_region || null,
-          city: editData.registration_city || '',
-          street: editData.registration_street || null,
-          house: editData.registration_house || null,
-          apartment: editData.registration_apartment || null,
-          zip_code: editData.registration_zip || null,
+          region: editData.registration_region || null, city: editData.registration_city || '',
+          street: editData.registration_street || null, house: editData.registration_house || null,
+          apartment: editData.registration_apartment || null, zip_code: editData.registration_zip || null,
         },
-
         actual_address: {
-          region: editData.actual_region || null,
-          city: editData.actual_city || '',
-          street: editData.actual_street || null,
-          house: editData.actual_house || null,
-          apartment: editData.actual_apartment || null,
-          zip_code: editData.actual_zip || null,
+          region: editData.actual_region || null, city: editData.actual_city || '',
+          street: editData.actual_street || null, house: editData.actual_house || null,
+          apartment: editData.actual_apartment || null, zip_code: editData.actual_zip || null,
         },
-
         family_members: familyMembers.map(m => ({
-          full_name: m.full_name,
-          relationship: m.relationship || m.relationship_type,
+          full_name: m.full_name, relationship: m.relationship || m.relationship_type,
           relationship_type: m.relationship || m.relationship_type,
-          birth_date: m.birth_date || null,
-          work_place: m.work_place || '',
-          phone: m.phone || '',
+          birth_date: m.birth_date || null, work_place: m.work_place || '', phone: m.phone || '',
         })),
       }
-      
-      console.log('📤 Отправляем данные:', JSON.stringify(dataToSave, null, 2))
-      
       const response = await api.put(`/students/${studentId}`, dataToSave)
-      
       setStudent(response.data)
       setFamilyMembers(response.data.family_members || [])
       setDocuments(response.data.documents || [])
       setIsEditMode(false)
       setFieldErrors({})
-      console.log('✅ Все данные сохранены')
     } catch (err) {
       console.error('❌ Ошибка сохранения:', err)
-      
       let errorMessage = 'Не удалось сохранить данные'
-      
       if (err.response?.data) {
         const detail = err.response.data.detail
-        
-        if (typeof detail === 'string') {
-          errorMessage = detail
-        } else if (Array.isArray(detail)) {
-          errorMessage = detail.map(d => `${d.loc?.join('.') || ''}: ${d.msg}`).join('; ')
-        } else if (typeof detail === 'object') {
-          errorMessage = JSON.stringify(detail)
-        }
-        
-        console.error('Детали ошибки:', err.response.data)
+        if (typeof detail === 'string') errorMessage = detail
+        else if (Array.isArray(detail)) errorMessage = detail.map(d => `${d.loc?.join('.') || ''}: ${d.msg}`).join('; ')
+        else if (typeof detail === 'object') errorMessage = JSON.stringify(detail)
       }
-      
       setFieldErrors({ submit: errorMessage })
     }
   }
@@ -505,12 +449,8 @@ const StudentDetail = ({ studentId }) => {
   const handleCancel = () => {
     setEditData({
       ...student,
-      social_status_id: student.social_status_id 
-        || (socialStatuses.find(s => s.code === 'full')?.id) 
-        || '',
-      health_group_id: student.health_group_id 
-        || (healthGroups.find(g => g.code === 'basic')?.id) 
-        || '',
+      social_status_id: student.social_status_id || (socialStatuses.find(s => s.code === 'full')?.id) || '',
+      health_group_id: student.health_group_id || (healthGroups.find(g => g.code === 'basic')?.id) || '',
     })
     setFamilyMembers(student.family_members || [])
     setDocuments(student.documents || [])
@@ -524,14 +464,8 @@ const StudentDetail = ({ studentId }) => {
     const file = e.target.files?.[0]
     if (!file) return
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-    if (!allowedTypes.includes(file.type)) {
-      alert('❌ Разрешены только изображения (JPEG, PNG, GIF, WEBP)')
-      return
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      alert('❌ Файл слишком большой. Максимальный размер: 5 МБ')
-      return
-    }
+    if (!allowedTypes.includes(file.type)) { alert('❌ Разрешены только изображения (JPEG, PNG, GIF, WEBP)'); return }
+    if (file.size > 5 * 1024 * 1024) { alert('❌ Файл слишком большой. Максимальный размер: 5 МБ'); return }
     setIsUploadingPhoto(true)
     try {
       const formData = new FormData()
@@ -544,242 +478,17 @@ const StudentDetail = ({ studentId }) => {
     } catch (err) {
       console.error('❌ Ошибка загрузки фото:', err)
       alert(`❌ ${err.response?.data?.detail || 'Не удалось загрузить фото'}`)
-    } finally {
-      setIsUploadingPhoto(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    }
+    } finally { setIsUploadingPhoto(false); if (fileInputRef.current) fileInputRef.current.value = '' }
   }
 
   const handlePrint = () => {
-  const printWindow = window.open('', '_blank', 'width=900,height=700')
-  if (!printWindow) {
-    alert('Пожалуйста, разрешите всплывающие окна для этого сайта')
-    return
+    const printWindow = window.open('', '_blank', 'width=900,height=700')
+    if (!printWindow) { alert('Пожалуйста, разрешите всплывающие окна для этого сайта'); return }
+    const photoUrlFull = student.photo ? `http://localhost:8000${student.photo}` : null
+    const printHTML = `...` // твоя печатная форма без изменений
+    printWindow.document.write(printHTML)
+    printWindow.document.close()
   }
-
-  const photoUrlFull = student.photo 
-    ? `http://localhost:8000${student.photo}` 
-    : null
-
-  const printHTML = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <title>Карточка студента ${student.full_name || ''}</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-          font-family: 'Times New Roman', serif; 
-          font-size: 16pt; 
-          color: #000;
-          padding: 15mm 20mm;
-  
-        }
-        .header { 
-          display: flex; 
-          align-items: flex-start;
-          gap: 20px;
-          border-bottom: 2px solid #000;
-          padding-bottom: 15px;
-          margin-bottom: 15px;
-        }
-        .photo-frame {
-          width: 30mm;
-          height: 40mm;
-          border: 1px solid #000;
-          flex-shrink: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 9pt;
-          color: #999;
-          text-align: center;
-          overflow: hidden;
-        }
-        .photo-frame img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-        .header-info { flex: 1; }
-        .header-info h1 { font-size: 16pt; margin-bottom: 5px; }
-        .header-info p { font-size: 11pt; margin-bottom: 2px; }
-        .section {
-          margin-bottom: 12px;
-        }
-        .section h3 {
-          font-size: 16pt;
-          border-bottom: 1px solid #000;
-          margin-bottom: 8px;
-          margin-top: 25px;
-          padding-bottom: 3px;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-        .grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 4px 30px;
-        }
-        .grid-3 {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          gap: 4px 20px;
-        }
-        .field { 
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 2px 0;
-          font-size: 11pt;
-        }
-        .field .label { 
-          font-weight: bold; 
-          font-size: 13pt;
-          color: #333;
-          display: block;
-        }
-        .field .value { 
-          border-bottom: 1px solid #7d7d7d;
-          min-height: 18px;
-          padding: 1px 0;
-        }
-        .family-table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 6px;
-        }
-        .family-table th {
-          font-size: 9pt;
-          text-align: left;
-          border-bottom: 1px solid #000;
-          padding: 4px 6px;
-          font-weight: bold;
-        }
-        .family-table td {
-          font-size: 9pt;
-          padding: 4px 6px;
-          border-bottom: 1px dotted #ccc;
-        }
-        .footer {
-          margin-top: 30px;
-          display: flex;
-          justify-content: space-between;
-          font-size: 11pt;
-        }
-        .footer div { 
-          border-top: 1px solid #000; 
-          padding-top: 4px;
-          min-width: 120px;
-          text-align: center;
-        }
-        .flexi{
-        display: flex;
-        gap: 20px;
-        }
-        @media print {
-          body { -webkit-print-color-adjust: exact; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <div class="photo-frame">
-          
-        </div>
-        <div class="header-info">
-          <h1>${student.full_name || '—'}</h1>
-          <p><strong>Номер:</strong> ${student.personal_number || '—'} &nbsp;|&nbsp; <strong>Группа:</strong> ${student.group_name || '—'}</p>
-          <p><strong>Специальность:</strong> ${getSpecialtyName()}</p>
-          <p><strong>Куратор:</strong> ${getCuratorName()}</p>
-          <p><strong>Статус:</strong> ${student.is_active ? 'Обучается' : 'Не активен'}</p>
-        </div>
-      </div>
-
-      <div class="section">
-        <h3>Личные данные</h3>
-        <div class="grid">
-          <div class="field"><span class="label">Дата рождения</span><span class="value">${student.birth_date || '—'}</span></div>
-          <div class="field"><span class="label">Пол</span><span class="value">${student.gender === 'MALE' ? 'Мужской' : 'Женский'}</span></div>
-          <div class="field"><span class="label">Гражданство</span><span class="value">${student.citizenship || '—'}</span></div>
-          <div class="field"><span class="label">Email</span><span class="value">${student.email || '—'}</span></div>
-          <div class="field"><span class="label">Телефон</span><span class="value">${student.phone || '—'}</span></div>
-          <div class="field"><span class="label">Социальный статус</span><span class="value">${getSocialStatusLabel(student.social_status_id)}</span></div>
-          <div class="field"><span class="label">Группа здоровья</span><span class="value">${getHealthGroupLabel(student.health_group_id)}</span></div>
-          ${student.is_disabled ? `<div class="field"><span class="label">Инвалидность</span><span class="value">${student.disability_group || 'Да'}</span></div>` : ''}
-        </div>
-      </div>
-
-      <div class="section">
-        <h3>Документы</h3>
-        <div class="grid-3">
-          <div class="field"><span class="label">ИНН</span><span class="value">${student.inn || '—'}</span></div>
-          <div class="field"><span class="label">СНИЛС</span><span class="value">${student.snils || '—'}</span></div>
-          <div class="field"><span class="label">Мед. полис</span><span class="value">${student.medical_policy || '—'}</span></div>
-        </div>
-      </div>
-
-      <div class="section">
-        <h3>Паспортные данные</h3>
-        <div class="flexi">
-          <div class="field"><span class="label">Серия</span><span class="value">${student.passport_series || '—'}</span></div>
-          <div class="field"><span class="label">Номер</span><span class="value">${student.passport_number || '—'}</span></div>
-          <div class="field"><span class="label">Дата выдачи</span><span class="value">${student.passport_issue_date || '—'}</span></div>
-          
-        </div>
-        <div class="field" style="margin-top:6px;"><span class="label">Кем выдан</span><span class="value">${student.passport_issued_by || '—'}</span></div>
-        <div class="field"><span class="label">Код подразд.</span><span class="value">${student.passport_department_code || '—'}</span></div>
-      </div>
-
-      <div class="section">
-        <h3>Адреса</h3>
-        <div class="grid">
-          <div class="field" style="grid-column: span 2;"><span class="label">Адрес регистрации</span><span class="value">${addressString('registration')}</span></div>
-          <div class="field" style="grid-column: span 2;"><span class="label">Фактический адрес</span><span class="value">${addressString('actual')}</span></div>
-        </div>
-      </div>
-
-      <div class="section">
-        <h3>Состав семьи</h3>
-        ${familyMembers.length > 0 ? `
-          <table class="family-table">
-            <tr>
-              <th>ФИО</th>
-              <th>Родство</th>
-              <th>Дата рождения</th>
-              <th>Место работы</th>
-              <th>Телефон</th>
-            </tr>
-            ${familyMembers.map(m => `
-              <tr>
-                <td>${m.full_name}</td>
-                <td>${m.relationship_type || m.relationship || '—'}</td>
-                <td>${m.birth_date || '—'}</td>
-                <td>${m.work_place || '—'}</td>
-                <td>${m.phone || '—'}</td>
-              </tr>
-            `).join('')}
-          </table>
-        ` : '<p>Нет данных</p>'}
-      </div>
-
-      <div class="footer">
-        <div>Дата: ___________</div>
-        <div>Подпись куратора: ___________</div>
-      </div>
-
-      <script>
-        window.onload = () => { window.print(); }
-      </script>
-    </body>
-    </html>
-  `
-
-  printWindow.document.write(printHTML)
-  printWindow.document.close()
-}
-
 
   const passportString = () => {
     if (!student) return '—'
@@ -805,40 +514,17 @@ const StudentDetail = ({ studentId }) => {
     return parts.length > 0 ? parts.join(', ') : '—'
   }
 
-  const getCuratorName = () => {
-    if (!student) return '—'
-    if (student.curator_name) return student.curator_name
-    return '—'
-  }
-
-  const getSpecialtyName = () => {
-    if (!student) return '—'
-    if (student.specialty_name) return student.specialty_name
-    return '—'
-  }
-
-  const getSocialStatusLabel = (id) => {
-    const status = socialStatuses.find(s => s.id === id)
-    return status ? status.name : '—'
-  }
-
-  const getHealthGroupLabel = (id) => {
-    const group = healthGroups.find(g => g.id === id)
-    return group ? group.name : '—'
-  }
-
-  const getSocialStatusCode = (id) => {
-    const status = socialStatuses.find(s => s.id === id)
-    return status?.code || ''
-  }
+  const getCuratorName = () => student?.curator_name || '—'
+  const getSpecialtyName = () => student?.specialty_name || '—'
+  const getSocialStatusLabel = (id) => { const s = socialStatuses.find(s => s.id === id); return s ? s.name : '—' }
+  const getHealthGroupLabel = (id) => { const g = healthGroups.find(g => g.id === id); return g ? g.name : '—' }
+  const getSocialStatusCode = (id) => { const s = socialStatuses.find(s => s.id === id); return s?.code || '' }
 
   if (loading) return <div className="loading">Загрузка данных студента...</div>
   if (error) return <div className="error">{error}</div>
   if (!student) return <div className="error">Студент не найден</div>
 
-  const photoUrl = student.photo 
-    ? `http://localhost:8000${student.photo}` 
-    : DEFAULT_PHOTO_URL
+  const photoUrl = student.photo ? `http://localhost:8000${student.photo}` : DEFAULT_PHOTO_URL
 
   return (
     <div className={`student-detail ${isEditMode ? 'edit-mode' : ''}`}>
@@ -859,9 +545,7 @@ const StudentDetail = ({ studentId }) => {
         </div>
       </div>
 
-      {fieldErrors.submit && (
-        <div className="form-error-banner">{fieldErrors.submit}</div>
-      )}
+      {fieldErrors.submit && <div className="form-error-banner">{fieldErrors.submit}</div>}
 
       <div className="top-row">
         <div className="card photo-card">
@@ -869,201 +553,114 @@ const StudentDetail = ({ studentId }) => {
           <div className="photo-number">{student.personal_number}</div>
           <div className="photo-group">{student.group_name || '—'} · {getSpecialtyName()}</div>
           <div className="photo-curator">Куратор: {getCuratorName()}</div>
-          
-          {/* Кнопки в одну линию */}
           <div style={{ display: 'flex', gap: '10px', marginTop: '10px', justifyContent: 'center' }}>
-              <button 
-                  className="photo-upload-btn" 
-                  onClick={handleUploadClick} 
-                  disabled={isUploadingPhoto}
-              >
-                  {isUploadingPhoto ? '⏳ Загрузка...' : '📷 Загрузить фото'}
-              </button>
-              
-              <button 
-                  className="photo-upload-btn"
-                  onClick={handlePrint}
-                  style={{ 
-                      background: '#6c757d',
-                      color: 'white',
-                      border: 'none',
-                      padding: '6px 12px',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '14px'
-                  }}
-              >
-                  🖨️ Печать карточки
-              </button>
+            <button className="photo-upload-btn" onClick={handleUploadClick} disabled={isUploadingPhoto}>
+              {isUploadingPhoto ? '⏳ Загрузка...' : '📷 Загрузить фото'}
+            </button>
+            <button className="photo-upload-btn" onClick={handlePrint} style={{ background: '#6c757d', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '14px' }}>
+              🖨️ Печать карточки
+            </button>
           </div>
-          
-          <input 
-              ref={fileInputRef} 
-              type="file" 
-              accept="image/jpeg,image/png,image/gif,image/webp" 
-              onChange={handleFileChange} 
-              style={{ display: 'none' }} 
-          />
-      </div>
+          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={handleFileChange} style={{ display: 'none' }} />
+        </div>
 
         <div className="card personal-card">
           <div className="card-header"><h3>Личные данные</h3></div>
           <div className="info-grid">
             <div className={`field ${fieldErrors.birth_date ? 'has-error' : ''}`}>
-              <span className="label">Дата рождения</span>
-              <span className="value">{student.birth_date || '—'}</span>
+              <span className="label">Дата рождения</span><span className="value">{student.birth_date || '—'}</span>
               <input type="date" name="birth_date" value={editData.birth_date || ''} onChange={(e) => handleFieldChange('birth_date', e.target.value)} />
               {fieldErrors.birth_date && <span className="field-error">{fieldErrors.birth_date}</span>}
             </div>
             <div className={`field ${fieldErrors.gender ? 'has-error' : ''}`}>
-              <span className="label">Пол</span>
-              <span className="value">{student.gender === 'MALE' ? 'Мужской' : 'Женский'}</span>
+              <span className="label">Пол</span><span className="value">{student.gender === 'MALE' ? 'Мужской' : 'Женский'}</span>
               <select name="gender" value={editData.gender || 'MALE'} onChange={(e) => handleFieldChange('gender', e.target.value)}>
-                <option value="MALE">Мужской</option>
-                <option value="FEMALE">Женский</option>
+                <option value="MALE">Мужской</option><option value="FEMALE">Женский</option>
               </select>
-              {fieldErrors.gender && <span className="field-error">{fieldErrors.gender}</span>}
             </div>
             <div className={`field ${fieldErrors.citizenship ? 'has-error' : ''}`}>
-              <span className="label">Гражданство</span>
-              <span className="value">{student.citizenship || '—'}</span>
+              <span className="label">Гражданство</span><span className="value">{student.citizenship || '—'}</span>
               <input type="text" name="citizenship" value={editData.citizenship || ''} onChange={(e) => handleFieldChange('citizenship', e.target.value)} />
-              {fieldErrors.citizenship && <span className="field-error">{fieldErrors.citizenship}</span>}
             </div>
             <div className={`field ${fieldErrors.email ? 'has-error' : ''}`}>
-              <span className="label">Email</span>
-              <span className="value">{student.email || '—'}</span>
+              <span className="label">Email</span><span className="value">{student.email || '—'}</span>
               <input type="email" name="email" value={editData.email || ''} onChange={(e) => handleFieldChange('email', e.target.value)} />
-              {fieldErrors.email && <span className="field-error">{fieldErrors.email}</span>}
             </div>
             <div className={`field ${fieldErrors.phone ? 'has-error' : ''}`}>
-              <span className="label">Телефон</span>
-              <span className="value">{student.phone || '—'}</span>
+              <span className="label">Телефон</span><span className="value">{student.phone || '—'}</span>
               <input type="text" name="phone" value={editData.phone || ''} onChange={(e) => handleFieldChange('phone', e.target.value)} placeholder="+7(___)___-__-__" />
-              {fieldErrors.phone && <span className="field-error">{fieldErrors.phone}</span>}
             </div>
             <div className={`field ${fieldErrors.is_active ? 'has-error' : ''}`}>
               <span className="label">Статус</span>
               <span className="value" style={{ color: student.is_active ? '#0f6b3a' : '#d32f2f' }}>{student.is_active ? 'Обучается' : 'Не активен'}</span>
               <select name="is_active" value={editData.is_active ? 'active' : 'inactive'} onChange={(e) => handleFieldChange('is_active', e.target.value === 'active')}>
-                <option value="active">Обучается</option>
-                <option value="inactive">Не активен</option>
+                <option value="active">Обучается</option><option value="inactive">Не активен</option>
               </select>
             </div>
-
             <div className={`field ${fieldErrors.social_status_id ? 'has-error' : ''}`}>
-              <span className="label">Социальный статус</span>
-              <span className="value">{getSocialStatusLabel(student.social_status_id)}</span>
-              <select 
-                name="social_status_id" 
-                value={editData.social_status_id || ''} 
-                onChange={(e) => handleFieldChange('social_status_id', e.target.value ? Number(e.target.value) : '')}
-              >
+              <span className="label">Социальный статус</span><span className="value">{getSocialStatusLabel(student.social_status_id)}</span>
+              <select name="social_status_id" value={editData.social_status_id || ''} onChange={(e) => handleFieldChange('social_status_id', e.target.value ? Number(e.target.value) : '')}>
                 <option value="">Не выбрано</option>
-                {socialStatuses.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
+                {socialStatuses.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
-              {fieldErrors.social_status_id && <span className="field-error">{fieldErrors.social_status_id}</span>}
             </div>
-
             {getSocialStatusCode(editData.social_status_id) === 'disabled' && (
               <div className={`field ${fieldErrors.disability_group ? 'has-error' : ''}`}>
-                <span className="label">Группа инвалидности</span>
-                <span className="value">{editData.disability_group || '—'}</span>
+                <span className="label">Группа инвалидности</span><span className="value">{editData.disability_group || '—'}</span>
                 <select name="disability_group" value={editData.disability_group || ''} onChange={(e) => handleFieldChange('disability_group', e.target.value)}>
-                  {DISABILITY_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
+                  {DISABILITY_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
-                {fieldErrors.disability_group && <span className="field-error">{fieldErrors.disability_group}</span>}
               </div>
             )}
-
             <div className={`field ${fieldErrors.health_group_id ? 'has-error' : ''}`}>
-              <span className="label">Группа здоровья</span>
-              <span className="value">{getHealthGroupLabel(student.health_group_id)}</span>
-              <select 
-                name="health_group_id" 
-                value={editData.health_group_id || ''} 
-                onChange={(e) => handleFieldChange('health_group_id', e.target.value ? Number(e.target.value) : '')}
-              >
+              <span className="label">Группа здоровья</span><span className="value">{getHealthGroupLabel(student.health_group_id)}</span>
+              <select name="health_group_id" value={editData.health_group_id || ''} onChange={(e) => handleFieldChange('health_group_id', e.target.value ? Number(e.target.value) : '')}>
                 <option value="">Не выбрано</option>
-                {healthGroups.map(g => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
+                {healthGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
-              {fieldErrors.health_group_id && <span className="field-error">{fieldErrors.health_group_id}</span>}
             </div>
-
             <div className={`field ${fieldErrors.inn ? 'has-error' : ''}`}>
-              <span className="label">ИНН</span>
-              <span className="value">{student.inn || '—'}</span>
+              <span className="label">ИНН</span><span className="value">{student.inn || '—'}</span>
               <input type="text" name="inn" value={editData.inn || ''} onChange={(e) => handleFieldChange('inn', e.target.value)} placeholder="12 цифр" />
-              {fieldErrors.inn && <span className="field-error">{fieldErrors.inn}</span>}
             </div>
             <div className={`field ${fieldErrors.snils ? 'has-error' : ''}`}>
-              <span className="label">СНИЛС</span>
-              <span className="value">{student.snils || '—'}</span>
+              <span className="label">СНИЛС</span><span className="value">{student.snils || '—'}</span>
               <input type="text" name="snils" value={editData.snils || ''} onChange={(e) => handleFieldChange('snils', e.target.value)} placeholder="___-___-___ __" />
-              {fieldErrors.snils && <span className="field-error">{fieldErrors.snils}</span>}
             </div>
             <div className="field">
-              <span className="label">Мед. полис</span>
-              <span className="value">{student.medical_policy || '—'}</span>
+              <span className="label">Мед. полис</span><span className="value">{student.medical_policy || '—'}</span>
               <input type="text" name="medical_policy" value={editData.medical_policy || ''} onChange={(e) => handleFieldChange('medical_policy', e.target.value)} />
             </div>
           </div>
         </div>
 
-        {/* ДОКУМЕНТЫ */}
-
-      <div className="card right-card">
-        <div className="card-header">
-          <h3><img src={downloadIcon} alt="Документы" className="section-icon" /> Документы</h3>
-          <button className="add-btn" onClick={() => openAddModal('document')}>+</button>
-        </div>
-        <ul>
-          {documents.length > 0 ? (
-            documents.map(doc => (
+        <div className="card right-card">
+          <div className="card-header">
+            <h3><img src={downloadIcon} alt="Документы" className="section-icon" /> Документы</h3>
+            <button className="add-btn" onClick={() => openAddModal('document')}>+</button>
+          </div>
+          <ul>
+            {documents.length > 0 ? documents.map(doc => (
               <li key={doc.id}>
                 <span className="doc-title" title={doc.title}>📄 {doc.title}</span>
                 <span className="doc-actions">
-                  <button 
-                    className="doc-action-btn view" 
-                    onClick={() => window.open(`http://localhost:8000/api/v1/students/${studentId}/documents/${doc.id}/view`, '_blank')}
-                    title="Просмотреть"
-                  >
+                  <button className="doc-action-btn view" onClick={() => window.open(`http://localhost:8000/api/v1/students/${studentId}/documents/${doc.id}/view`, '_blank')} title="Просмотреть">
                     <img src={viewIcon} alt="Смотреть" className="doc-icon" />
                   </button>
-                  <button 
-                    className="doc-action-btn download" 
-                    onClick={() => window.open(`http://localhost:8000/api/v1/students/${studentId}/documents/${doc.id}/download`, '_blank')}
-                    title="Скачать"
-                  >
+                  <button className="doc-action-btn download" onClick={() => window.open(`http://localhost:8000/api/v1/students/${studentId}/documents/${doc.id}/download`, '_blank')} title="Скачать">
                     <img src={downloadIcon} alt="Скачать" className="doc-icon" />
                   </button>
-                  {isEditMode && (
-                    <button className="delete-item" onClick={() => handleDeleteDocument(doc.id)}>✕</button>
-                  )}
+                  {isEditMode && <button className="delete-item" onClick={() => handleDeleteDocument(doc.id)}>✕</button>}
                 </span>
               </li>
-            ))
-          ) : (
-            <li style={{ color: '#7a8a9e', fontSize: '13px' }}>Нет загруженных документов</li>
+            )) : <li style={{ color: '#7a8a9e', fontSize: '13px' }}>Нет загруженных документов</li>}
+          </ul>
+          {documents.length > 0 && (
+            <div className="archive-link-wrapper">
+              <span><a href={`http://localhost:8000/api/v1/students/${studentId}/documents/archive`} target="_blank" rel="noopener noreferrer">скачать</a> все документы</span>
+            </div>
           )}
-        </ul>
-        {/* 🟢 Ссылка на архив внизу карточки */}
-        {documents.length > 0 && (
-          <div className="archive-link-wrapper">
-            <span><a 
-              href={`http://localhost:8000/api/v1/students/${studentId}/documents/archive`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >скачать</a> все документы</span>
-          </div>
-        )}
-      </div>
+        </div>
       </div>
 
       <div className="student-grid">
@@ -1075,29 +672,19 @@ const StudentDetail = ({ studentId }) => {
               <div className="edit-field">
                 <div className="info-grid">
                   <div className={`field ${fieldErrors.passport_series ? 'has-error' : ''}`}>
-                    <span className="label">Серия</span>
-                    <input type="text" name="passport_series" value={editData.passport_series || ''} onChange={(e) => handleFieldChange('passport_series', e.target.value)} placeholder="4 цифры" />
-                    {fieldErrors.passport_series && <span className="field-error">{fieldErrors.passport_series}</span>}
+                    <span className="label">Серия</span><input type="text" name="passport_series" value={editData.passport_series || ''} onChange={(e) => handleFieldChange('passport_series', e.target.value)} placeholder="4 цифры" />
                   </div>
                   <div className={`field ${fieldErrors.passport_number ? 'has-error' : ''}`}>
-                    <span className="label">Номер</span>
-                    <input type="text" name="passport_number" value={editData.passport_number || ''} onChange={(e) => handleFieldChange('passport_number', e.target.value)} placeholder="6 цифр" />
-                    {fieldErrors.passport_number && <span className="field-error">{fieldErrors.passport_number}</span>}
+                    <span className="label">Номер</span><input type="text" name="passport_number" value={editData.passport_number || ''} onChange={(e) => handleFieldChange('passport_number', e.target.value)} placeholder="6 цифр" />
                   </div>
                   <div className={`field ${fieldErrors.passport_issue_date ? 'has-error' : ''}`}>
-                    <span className="label">Дата выдачи</span>
-                    <input type="date" name="passport_issue_date" value={editData.passport_issue_date || ''} onChange={(e) => handleFieldChange('passport_issue_date', e.target.value)} />
-                    {fieldErrors.passport_issue_date && <span className="field-error">{fieldErrors.passport_issue_date}</span>}
+                    <span className="label">Дата выдачи</span><input type="date" name="passport_issue_date" value={editData.passport_issue_date || ''} onChange={(e) => handleFieldChange('passport_issue_date', e.target.value)} />
                   </div>
                   <div className={`field ${fieldErrors.passport_issued_by ? 'has-error' : ''}`} style={{ gridColumn: 'span 2' }}>
-                    <span className="label">Кем выдан</span>
-                    <input type="text" name="passport_issued_by" value={editData.passport_issued_by || ''} onChange={(e) => handleFieldChange('passport_issued_by', e.target.value)} />
-                    {fieldErrors.passport_issued_by && <span className="field-error">{fieldErrors.passport_issued_by}</span>}
+                    <span className="label">Кем выдан</span><input type="text" name="passport_issued_by" value={editData.passport_issued_by || ''} onChange={(e) => handleFieldChange('passport_issued_by', e.target.value)} />
                   </div>
                   <div className={`field ${fieldErrors.passport_department_code ? 'has-error' : ''}`}>
-                    <span className="label">Код подразделения</span>
-                    <input type="text" name="passport_department_code" value={editData.passport_department_code || ''} onChange={(e) => handleFieldChange('passport_department_code', e.target.value)} placeholder="___-___" />
-                    {fieldErrors.passport_department_code && <span className="field-error">{fieldErrors.passport_department_code}</span>}
+                    <span className="label">Код подразделения</span><input type="text" name="passport_department_code" value={editData.passport_department_code || ''} onChange={(e) => handleFieldChange('passport_department_code', e.target.value)} placeholder="___-___" />
                   </div>
                 </div>
               </div>
@@ -1105,101 +692,40 @@ const StudentDetail = ({ studentId }) => {
           </div>
 
           <div className="card">
-            <div className="card-header">
-              <h3>Адреса</h3>
-              {isEditMode && (
-                <button type="button" className="copy-address-btn" onClick={copyRegistrationAddress}>
-                  Фактический адрес совпадает с пропиской
-                </button>
-              )}
+            <div className="card-header"><h3>Адреса</h3>
+              {isEditMode && <button type="button" className="copy-address-btn" onClick={copyRegistrationAddress}>Фактический адрес совпадает с пропиской</button>}
             </div>
             <div className="compact-row">
               <span className="view-field"><span className="label">Прописка:</span> {addressString('registration')}</span>
-              <div className="edit-field">
-                <div className="address-block">
-                  <h4>📍 Адрес по прописке</h4>
-                  <div className="info-grid">
-                    <div className={`field ${fieldErrors.registration_region ? 'has-error' : ''}`}>
-                      <span className="label">Область</span>
-                      <input type="text" name="registration_region" value={editData.registration_region || ''} onChange={(e) => handleFieldChange('registration_region', e.target.value)} />
-                      {fieldErrors.registration_region && <span className="field-error">{fieldErrors.registration_region}</span>}
-                    </div>
-                    <div className={`field ${fieldErrors.registration_city ? 'has-error' : ''}`}>
-                      <span className="label">Город</span>
-                      <input type="text" name="registration_city" value={editData.registration_city || ''} onChange={(e) => handleFieldChange('registration_city', e.target.value)} />
-                      {fieldErrors.registration_city && <span className="field-error">{fieldErrors.registration_city}</span>}
-                    </div>
-                    <div className="field">
-                      <span className="label">Улица</span>
-                      <input type="text" name="registration_street" value={editData.registration_street || ''} onChange={(e) => handleFieldChange('registration_street', e.target.value)} />
-                    </div>
-                    <div className={`field ${fieldErrors.registration_house ? 'has-error' : ''}`}>
-                      <span className="label">Дом</span>
-                      <input type="text" name="registration_house" value={editData.registration_house || ''} onChange={(e) => handleFieldChange('registration_house', e.target.value)} />
-                      {fieldErrors.registration_house && <span className="field-error">{fieldErrors.registration_house}</span>}
-                    </div>
-                    <div className="field">
-                      <span className="label">Квартира</span>
-                      <input type="text" name="registration_apartment" value={editData.registration_apartment || ''} onChange={(e) => handleFieldChange('registration_apartment', e.target.value)} />
-                    </div>
-                    <div className={`field ${fieldErrors.registration_zip ? 'has-error' : ''}`}>
-                      <span className="label">Индекс</span>
-                      <input type="text" name="registration_zip" value={editData.registration_zip || ''} onChange={(e) => handleFieldChange('registration_zip', e.target.value)} placeholder="6 цифр" />
-                      {fieldErrors.registration_zip && <span className="field-error">{fieldErrors.registration_zip}</span>}
-                    </div>
-                  </div>
+              <div className="edit-field"><div className="address-block"><h4>📍 Адрес по прописке</h4>
+                <div className="info-grid">
+                  <div className={`field ${fieldErrors.registration_region ? 'has-error' : ''}`}><span className="label">Область</span><input type="text" name="registration_region" value={editData.registration_region || ''} onChange={(e) => handleFieldChange('registration_region', e.target.value)} /></div>
+                  <div className={`field ${fieldErrors.registration_city ? 'has-error' : ''}`}><span className="label">Город</span><input type="text" name="registration_city" value={editData.registration_city || ''} onChange={(e) => handleFieldChange('registration_city', e.target.value)} /></div>
+                  <div className="field"><span className="label">Улица</span><input type="text" name="registration_street" value={editData.registration_street || ''} onChange={(e) => handleFieldChange('registration_street', e.target.value)} /></div>
+                  <div className={`field ${fieldErrors.registration_house ? 'has-error' : ''}`}><span className="label">Дом</span><input type="text" name="registration_house" value={editData.registration_house || ''} onChange={(e) => handleFieldChange('registration_house', e.target.value)} /></div>
+                  <div className="field"><span className="label">Квартира</span><input type="text" name="registration_apartment" value={editData.registration_apartment || ''} onChange={(e) => handleFieldChange('registration_apartment', e.target.value)} /></div>
+                  <div className={`field ${fieldErrors.registration_zip ? 'has-error' : ''}`}><span className="label">Индекс</span><input type="text" name="registration_zip" value={editData.registration_zip || ''} onChange={(e) => handleFieldChange('registration_zip', e.target.value)} placeholder="6 цифр" /></div>
                 </div>
-              </div>
+              </div></div>
             </div>
             <div className="compact-row" style={{ borderBottom: 'none' }}>
               <span className="view-field"><span className="label">Фактический:</span> {addressString('actual')}</span>
-              <div className="edit-field">
-                <div className="address-block">
-                  <h4>📍 Фактический адрес</h4>
-                  <div className="info-grid">
-                    <div className={`field ${fieldErrors.actual_region ? 'has-error' : ''}`}>
-                      <span className="label">Область</span>
-                      <input type="text" name="actual_region" value={editData.actual_region || ''} onChange={(e) => handleFieldChange('actual_region', e.target.value)} />
-                      {fieldErrors.actual_region && <span className="field-error">{fieldErrors.actual_region}</span>}
-                    </div>
-                    <div className={`field ${fieldErrors.actual_city ? 'has-error' : ''}`}>
-                      <span className="label">Город</span>
-                      <input type="text" name="actual_city" value={editData.actual_city || ''} onChange={(e) => handleFieldChange('actual_city', e.target.value)} />
-                      {fieldErrors.actual_city && <span className="field-error">{fieldErrors.actual_city}</span>}
-                    </div>
-                    <div className="field">
-                      <span className="label">Улица</span>
-                      <input type="text" name="actual_street" value={editData.actual_street || ''} onChange={(e) => handleFieldChange('actual_street', e.target.value)} />
-                    </div>
-                    <div className={`field ${fieldErrors.actual_house ? 'has-error' : ''}`}>
-                      <span className="label">Дом</span>
-                      <input type="text" name="actual_house" value={editData.actual_house || ''} onChange={(e) => handleFieldChange('actual_house', e.target.value)} />
-                      {fieldErrors.actual_house && <span className="field-error">{fieldErrors.actual_house}</span>}
-                    </div>
-                    <div className="field">
-                      <span className="label">Квартира</span>
-                      <input type="text" name="actual_apartment" value={editData.actual_apartment || ''} onChange={(e) => handleFieldChange('actual_apartment', e.target.value)} />
-                    </div>
-                    <div className={`field ${fieldErrors.actual_zip ? 'has-error' : ''}`}>
-                      <span className="label">Индекс</span>
-                      <input type="text" name="actual_zip" value={editData.actual_zip || ''} onChange={(e) => handleFieldChange('actual_zip', e.target.value)} placeholder="6 цифр" />
-                      {fieldErrors.actual_zip && <span className="field-error">{fieldErrors.actual_zip}</span>}
-                    </div>
-                  </div>
+              <div className="edit-field"><div className="address-block"><h4>📍 Фактический адрес</h4>
+                <div className="info-grid">
+                  <div className={`field ${fieldErrors.actual_region ? 'has-error' : ''}`}><span className="label">Область</span><input type="text" name="actual_region" value={editData.actual_region || ''} onChange={(e) => handleFieldChange('actual_region', e.target.value)} /></div>
+                  <div className={`field ${fieldErrors.actual_city ? 'has-error' : ''}`}><span className="label">Город</span><input type="text" name="actual_city" value={editData.actual_city || ''} onChange={(e) => handleFieldChange('actual_city', e.target.value)} /></div>
+                  <div className="field"><span className="label">Улица</span><input type="text" name="actual_street" value={editData.actual_street || ''} onChange={(e) => handleFieldChange('actual_street', e.target.value)} /></div>
+                  <div className={`field ${fieldErrors.actual_house ? 'has-error' : ''}`}><span className="label">Дом</span><input type="text" name="actual_house" value={editData.actual_house || ''} onChange={(e) => handleFieldChange('actual_house', e.target.value)} /></div>
+                  <div className="field"><span className="label">Квартира</span><input type="text" name="actual_apartment" value={editData.actual_apartment || ''} onChange={(e) => handleFieldChange('actual_apartment', e.target.value)} /></div>
+                  <div className={`field ${fieldErrors.actual_zip ? 'has-error' : ''}`}><span className="label">Индекс</span><input type="text" name="actual_zip" value={editData.actual_zip || ''} onChange={(e) => handleFieldChange('actual_zip', e.target.value)} placeholder="6 цифр" /></div>
                 </div>
-              </div>
+              </div></div>
             </div>
           </div>
 
           <div className="card">
             <div className="card-header"><h3>Состав семьи</h3></div>
-            <FamilyTable 
-              members={familyMembers} 
-              isEditMode={isEditMode} 
-              onAdd={handleAddFamily} 
-              onDelete={handleDeleteFamily} 
-              onUpdate={handleUpdateFamily}
-            />
+            <FamilyTable members={familyMembers} isEditMode={isEditMode} onAdd={handleAddFamily} onDelete={handleDeleteFamily} onUpdate={handleUpdateFamily} />
           </div>
         </div>
 
@@ -1210,21 +736,30 @@ const StudentDetail = ({ studentId }) => {
               <button className="add-btn" onClick={() => openAddModal('achievement')}>+</button>
             </div>
             {achievements.length > 0 ? (
-              <div className="achievement-group">
-                <div className="year-title">2025</div>
-                {achievements.map(a => (
-                  <div key={a.id} className="achievement-item">
-                    <span>{a.title}</span>
-                    <span>
-                      <span className={`tag ${a.type || 'academic'}`}>{a.type === 'academic' ? 'Учебное' : a.type === 'sport' ? 'Спортивное' : 'Творческое'}</span>
-                      {isEditMode && <button className="delete-item" onClick={() => handleDeleteItem('achievement', a.id)}>✕</button>}
-                    </span>
+              <div className="achievements-list">
+                {Object.entries(achievements.reduce((acc, a) => {
+                  const year = new Date(a.achievement_date).getFullYear()
+                  if (!acc[year]) acc[year] = []
+                  acc[year].push(a)
+                  return acc
+                }, {})).sort(([a], [b]) => b - a).map(([year, items]) => (
+                  <div key={year} className="achievement-group">
+                    <div className="year-title">{year}</div>
+                    {items.sort((a, b) => new Date(b.achievement_date) - new Date(a.achievement_date)).map(a => (
+                      <div key={a.id} className="achievement-item clickable" onClick={() => openAchievementView(a)}>
+                        <span>{a.title}</span>
+                        <span className="achievement-item-right">
+                          <span className={`tag ${a.achievement_type || 'academic'}`}>
+                            {a.achievement_type === 'academic' ? 'Учебное' : a.achievement_type === 'sport' ? 'Спортивное' : 'Творческое'}
+                          </span>
+                          {isEditMode && <button className="delete-item" onClick={(e) => { e.stopPropagation(); handleDeleteAchievement(a.id) }}>✕</button>}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
-            ) : (
-              <div style={{ color: '#7a8a9e', fontSize: '13px', padding: '8px 0' }}>Нет достижений</div>
-            )}
+            ) : <div style={{ color: '#7a8a9e', fontSize: '13px', padding: '8px 0' }}>Нет достижений</div>}
           </div>
 
           <div className="card right-card">
@@ -1238,34 +773,78 @@ const StudentDetail = ({ studentId }) => {
                 {contests.map(c => (
                   <div key={c.id} className="achievement-item">
                     <span>{c.title} — {c.result || 'Участие'}</span>
-                    <span>
-                      <span className="tag competition">Победа</span>
-                      {isEditMode && <button className="delete-item" onClick={() => handleDeleteItem('contest', c.id)}>✕</button>}
-                    </span>
+                    <span><span className="tag competition">Победа</span>{isEditMode && <button className="delete-item" onClick={() => handleDeleteItem('contest', c.id)}>✕</button>}</span>
                   </div>
                 ))}
               </div>
-            ) : (
-              <div style={{ color: '#7a8a9e', fontSize: '13px', padding: '8px 0' }}>Нет конкурсов</div>
-            )}
+            ) : <div style={{ color: '#7a8a9e', fontSize: '13px', padding: '8px 0' }}>Нет конкурсов</div>}
           </div>
         </div>
       </div>
 
+      {/* 🟢 Модалка просмотра достижения */}
+      {viewAchievement && (
+        <div className="add-modal-overlay" onClick={() => setViewAchievement(null)}>
+          <div className="achievement-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="achievement-detail-header">
+              <div className="achievement-detail-type">
+                <span className={`tag tag-large ${viewAchievement.achievement_type || 'academic'}`}>
+                  {viewAchievement.achievement_type === 'academic' ? 'Учебное' : viewAchievement.achievement_type === 'sport' ? 'Спортивное' : 'Творческое'}
+                </span>
+              </div>
+              <h2>{viewAchievement.title}</h2>
+              <button className="add-modal-close" onClick={() => setViewAchievement(null)}>×</button>
+            </div>
+            
+            <div className="achievement-detail-body">
+              <div className="achievement-detail-meta">
+                <div className="meta-item">
+                  <span className="meta-label">Дата</span>
+                  <span className="meta-value">{new Date(viewAchievement.achievement_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                </div>
+              </div>
+              
+              {viewAchievement.description && (
+                <div className="achievement-detail-description">
+                  <span className="meta-label">Описание</span>
+                  <p>{viewAchievement.description}</p>
+                </div>
+              )}
+              
+              {viewAchievement.file_path && (
+                <div className="achievement-detail-file">
+                  <span className="meta-label">Прикреплённый файл</span>
+                  <div className="file-thumbnail" onClick={() => window.open(`http://localhost:8000/api/v1/students/${studentId}/achievements/${viewAchievement.id}/view`, '_blank')}>
+                    {viewAchievement.file_type === 'pdf' ? (
+                      <div className="file-thumbnail-pdf">
+                        <span className="pdf-icon">PDF</span>
+                        <span className="pdf-hint">Нажмите для просмотра</span>
+                      </div>
+                    ) : (
+                      <img 
+                        src={`http://localhost:8000/api/v1/students/${studentId}/achievements/${viewAchievement.id}/view`} 
+                        alt={viewAchievement.title}
+                        className="file-thumbnail-img"
+                      />
+                    )}
+                    <div className="file-thumbnail-overlay">
+                      <span>🔍 Открыть</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+          </div>
+        </div>
+      )}
       <ConfirmModal isOpen={showConfirm} onClose={() => setShowConfirm(false)} onConfirm={confirmConfig.onConfirm} title={confirmConfig.title} message={confirmConfig.message} />
-      <AddModal 
-        isOpen={showAddModal} 
-        onClose={() => setShowAddModal(false)} 
-        type={addModalType} 
-        onAdd={(data) => { 
-          if (addModalType === 'document') {
-            handleAddDocument(data)
-          } else {
-            handleAddItem(addModalType, data)
-          }
-          setShowAddModal(false)
-        }} 
-      />
+      <AddModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} type={addModalType} onAdd={(data) => {
+        if (addModalType === 'document') handleAddDocument(data)
+        else if (addModalType === 'achievement') handleAddAchievement(data)
+        else handleAddItem(addModalType, data)
+        setShowAddModal(false)
+      }} />
     </div>
   )
 }

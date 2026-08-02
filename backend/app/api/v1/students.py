@@ -3,14 +3,15 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models import User, Student, Curator, GroupStudent, Group, Specialty, FamilyMember, SocialStatus, HealthGroup, StudentDocument, DocumentType
+from app.models import User, Student, Curator, GroupStudent, Group, Specialty, FamilyMember, SocialStatus, HealthGroup, StudentDocument, DocumentType, StudentAchievement
 from app.schemas import StudentCreate, StudentUpdate, StudentRead, DocumentRead, DocumentUploadResponse
 from app.schemas import SocialStatusRead, HealthGroupRead
 from app.schemas import FamilyMemberRead, DocumentTypeRead
+from app.schemas import AchievementCreate, AchievementRead
 
 from fastapi import UploadFile, File, Form
 from fastapi.responses import FileResponse, StreamingResponse
@@ -23,6 +24,7 @@ from io import BytesIO
 router = APIRouter(prefix="/students", tags=["Students"])
 PHOTOS_DIR = "uploads/photos"
 DOCUMENTS_DIR = "uploads/documents"
+ACHIEVEMENTS_DIR = "uploads/achievements"
 
 
 @router.get("/", response_model=List[StudentRead])
@@ -180,6 +182,11 @@ def get_student_by_id(
 
     docs = db.query(StudentDocument).filter(StudentDocument.student_id == student_id).all()
     data.documents = [DocumentRead.model_validate(d) for d in docs]
+    
+    achievements = db.query(StudentAchievement).filter(
+    StudentAchievement.student_id == student_id
+    ).order_by(StudentAchievement.achievement_date.desc()).all()
+    data.achievements = [AchievementRead.model_validate(a) for a in achievements]
 
     return data
 
@@ -568,5 +575,123 @@ def delete_document(
         os.remove(file_path)
     
     db.delete(doc)
+    db.commit()
+    return None
+
+# ======== Достижения =============
+
+
+@router.get("/{student_id}/achievements", response_model=List[AchievementRead])
+def get_student_achievements(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Получить достижения студента, отсортированные по дате (новые сначала)."""
+    achievements = db.query(StudentAchievement).filter(
+        StudentAchievement.student_id == student_id
+    ).order_by(StudentAchievement.achievement_date.desc()).all()
+    return achievements
+
+
+@router.post("/{student_id}/achievements", response_model=AchievementRead)
+async def create_achievement(
+    student_id: int,
+    title: str = Form(...),
+    achievement_date: date = Form(...),
+    achievement_type: str = Form(...),
+    description: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Добавить достижение с опциональным файлом."""
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Студент не найден")
+
+    file_path = None
+    file_type = None
+
+    if file and file.filename:
+        allowed_types = ['application/pdf', 'image/jpeg', 'image/png']
+        if file.content_type not in allowed_types:
+            raise HTTPException(status_code=400, detail="Разрешены только PDF, JPG, PNG")
+        
+        ext_map = {'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png'}
+        ext = ext_map.get(file.content_type, 'jpg')
+        
+        os.makedirs(ACHIEVEMENTS_DIR, exist_ok=True)
+        safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        filename = f"{student.personal_number}_{safe_title}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.{ext}"
+        file_path_full = os.path.join(ACHIEVEMENTS_DIR, filename)
+        
+        with open(file_path_full, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        file_path = f"/uploads/achievements/{filename}"
+        file_type = ext
+
+    achievement = StudentAchievement(
+        student_id=student_id,
+        title=title,
+        description=description,
+        achievement_date=achievement_date,
+        achievement_type=achievement_type,
+        file_path=file_path,
+        file_type=file_type
+    )
+    db.add(achievement)
+    db.commit()
+    db.refresh(achievement)
+    
+    return achievement
+
+
+@router.get("/{student_id}/achievements/{achievement_id}/view")
+def view_achievement_file(
+    student_id: int,
+    achievement_id: int,
+    db: Session = Depends(get_db)
+):
+    """Просмотр файла достижения."""
+    achievement = db.query(StudentAchievement).filter(
+        StudentAchievement.id == achievement_id,
+        StudentAchievement.student_id == student_id
+    ).first()
+    if not achievement or not achievement.file_path:
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    
+    file_path = os.path.join(os.getcwd(), ACHIEVEMENTS_DIR, os.path.basename(achievement.file_path))
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    
+    media_type_map = {'pdf': 'application/pdf', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png'}
+    media_type = media_type_map.get(achievement.file_type, 'application/octet-stream')
+    
+    return FileResponse(file_path, media_type=media_type)
+
+
+@router.delete("/{student_id}/achievements/{achievement_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_achievement(
+    student_id: int,
+    achievement_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Удалить достижение."""
+    achievement = db.query(StudentAchievement).filter(
+        StudentAchievement.id == achievement_id,
+        StudentAchievement.student_id == student_id
+    ).first()
+    if not achievement:
+        raise HTTPException(status_code=404, detail="Достижение не найдено")
+    
+    if achievement.file_path:
+        file_path = os.path.join(os.getcwd(), ACHIEVEMENTS_DIR, os.path.basename(achievement.file_path))
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    
+    db.delete(achievement)
     db.commit()
     return None

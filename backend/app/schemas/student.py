@@ -5,6 +5,7 @@ from datetime import date, datetime
 from typing import Optional, List  
 from app.models.enums import Gender
 from app.models import DocumentType
+from app.models.enums import Gender, AchievementType
 
 
 class AddressRead(BaseModel):
@@ -130,6 +131,25 @@ class DocumentTypeRead(BaseModel):
     class Config:
         from_attributes = True
 
+class AchievementCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    achievement_date: date
+    achievement_type: AchievementType
+
+
+class AchievementRead(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    achievement_date: date
+    achievement_type: str
+    file_path: Optional[str] = None
+    file_type: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
 
 class StudentRead(BaseModel):
     id: int
@@ -187,6 +207,8 @@ class StudentRead(BaseModel):
 
     family_members: Optional[List[FamilyMemberRead]] = None
     documents: Optional[List[DocumentRead]] = None
+    
+    achievements: Optional[List[AchievementRead]] = None
 
     class Config:
         from_attributes = True
