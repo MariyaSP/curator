@@ -17,13 +17,14 @@ from .student import (
     DocumentTypeRead, 
     AchievementCreate,
     AchievementRead,
+    CompetitionParticipantRead,
 )
 from .group import GroupBase, GroupCreate, GroupUpdate, GroupRead
 from .event import EventBase, EventCreate, EventUpdate, EventRead
 from .auth import UserLogin, UserToken, PasswordResetRequest, PasswordResetConfirm
 from .competition import (
     CompetitionBase, CompetitionCreate, CompetitionUpdate, CompetitionRead,
-    CompetitionParticipantBase, CompetitionParticipantCreate, CompetitionParticipantRead
+    CompetitionParticipantBase, CompetitionParticipantCreate
 )
 from .report import (
     ReportTemplateBase, ReportTemplateCreate, ReportTemplateUpdate, ReportTemplateRead,
@@ -52,7 +53,10 @@ __all__ = [
     "FamilyMemberRead",
     "DocumentRead",
     "DocumentUploadResponse",
-    "DocumentTypeRead",  # 🟢 ДОБАВЛЕНО с кавычками
+    "DocumentTypeRead",
+    "AchievementCreate",
+    "AchievementRead",
+    "CompetitionParticipantRead",
     # Group
     "GroupBase", "GroupCreate", "GroupUpdate", "GroupRead",
     # Event
@@ -61,9 +65,9 @@ __all__ = [
     "UserLogin", "UserToken", "PasswordResetRequest", "PasswordResetConfirm",
     # Competition
     "CompetitionBase", "CompetitionCreate", "CompetitionUpdate", "CompetitionRead",
-    "CompetitionParticipantBase", "CompetitionParticipantCreate", "CompetitionParticipantRead",
+    "CompetitionParticipantBase", "CompetitionParticipantCreate",
     # Report
     "ReportTemplateBase", "ReportTemplateCreate", "ReportTemplateUpdate", "ReportTemplateRead",
     "GeneratedReportBase", "GeneratedReportCreate", "GeneratedReportRead",
-    "ReportGenerateParams", "AchievementCreate", "AchievementRead"
+    "ReportGenerateParams",
 ]

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timezone, date
+from app.models import Competition
 
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -12,6 +13,9 @@ from app.schemas import StudentCreate, StudentUpdate, StudentRead, DocumentRead,
 from app.schemas import SocialStatusRead, HealthGroupRead
 from app.schemas import FamilyMemberRead, DocumentTypeRead
 from app.schemas import AchievementCreate, AchievementRead
+from app.models import CompetitionParticipant
+from app.schemas import CompetitionParticipantRead
+from sqlalchemy.orm import joinedload
 
 from fastapi import UploadFile, File, Form
 from fastapi.responses import FileResponse, StreamingResponse
@@ -122,6 +126,39 @@ def get_document_types(
     return types
 
 
+@router.get("/references/curators")
+def get_college_curators(
+    search: Optional[str] = Query(None, description="Поиск по ФИО"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Получить список преподавателей колледжа текущего пользователя."""
+    if current_user.role == 2:
+        curator = db.query(Curator).filter(Curator.user_id == current_user.id).first()
+        college_id = curator.college_id if curator else None
+    else:
+        college_id = None
+    
+    query = db.query(Curator).join(User)
+    
+    if college_id:
+        query = query.filter(Curator.college_id == college_id)
+    
+    if search:
+        query = query.filter(User.full_name.ilike(f"%{search}%"))
+    
+    curators = query.limit(20).all()
+    
+    return [
+        {
+            "id": c.id,
+            "full_name": c.user.full_name,
+            "college_id": c.college_id,
+        }
+        for c in curators
+    ]
+
+
 @router.get("/{student_id}", response_model=StudentRead)
 def get_student_by_id(
     student_id: int,
@@ -184,9 +221,40 @@ def get_student_by_id(
     data.documents = [DocumentRead.model_validate(d) for d in docs]
     
     achievements = db.query(StudentAchievement).filter(
-    StudentAchievement.student_id == student_id
+        StudentAchievement.student_id == student_id
     ).order_by(StudentAchievement.achievement_date.desc()).all()
     data.achievements = [AchievementRead.model_validate(a) for a in achievements]
+    
+    # 🟢 ИСПРАВЛЕНО: Загружаем участия в конкурсах — все поля передаются при создании
+    participants = db.query(CompetitionParticipant).options(
+        joinedload(CompetitionParticipant.competition)
+    ).filter(
+        CompetitionParticipant.student_id == student_id
+    ).all()
+
+    data.competitions = []
+    for p in participants:
+        # Явно загружаем competition
+        competition = db.query(Competition).filter(Competition.id == p.competition_id).first()
+        curator_name = None
+        if competition and competition.curator and competition.curator.user:
+            curator_name = competition.curator.user.full_name
+        
+        comp_data = CompetitionParticipantRead(
+            id=p.id,
+            student_id=p.student_id,
+            competition_id=p.competition_id,
+            competition_title=competition.title if competition else None,
+            competition_date=competition.competition_date if competition else None,
+            curator_name=curator_name,
+            result_type=p.result_type.value.upper() if p.result_type else None,
+            result_description=p.result_description,
+            file_path=p.file_path,
+            file_type=p.file_type.value if p.file_type else None,
+            created_at=p.created_at,
+        )
+        print(f"🏆 competition_title={comp_data.competition_title}, competition_date={comp_data.competition_date}")
+        data.competitions.append(comp_data)
 
     return data
 
@@ -578,8 +646,8 @@ def delete_document(
     db.commit()
     return None
 
-# ======== Достижения =============
 
+# ======== ДОСТИЖЕНИЯ =============
 
 @router.get("/{student_id}/achievements", response_model=List[AchievementRead])
 def get_student_achievements(

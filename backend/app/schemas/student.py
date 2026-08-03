@@ -7,6 +7,21 @@ from app.models.enums import Gender
 from app.models import DocumentType
 from app.models.enums import Gender, AchievementType
 
+class CompetitionParticipantRead(BaseModel):
+    id: int
+    competition_id: int
+    student_id: Optional[int] = None  
+    competition_title: Optional[str] = None
+    competition_date: Optional[date] = None
+    curator_name: Optional[str] = None
+    result_type: Optional[str] = None
+    result_description: Optional[str] = None
+    file_path: Optional[str] = None
+    file_type: Optional[str] = None
+    created_at: Optional[datetime] = None  
+
+    class Config:
+        from_attributes = True
 
 class AddressRead(BaseModel):
     region: Optional[str] = None
@@ -209,6 +224,9 @@ class StudentRead(BaseModel):
     documents: Optional[List[DocumentRead]] = None
     
     achievements: Optional[List[AchievementRead]] = None
+    
+    competitions: Optional[List[CompetitionParticipantRead]] = None
+
 
     class Config:
         from_attributes = True

@@ -7,7 +7,6 @@ const AddModal = ({ isOpen, onClose, type, onAdd }) => {
   const [formData, setFormData] = useState({ name: '', date: '', type: 'academic', result: '', file: null, documentTypeId: '' })
   const [documentTypes, setDocumentTypes] = useState([])
 
-  // 🟢 Загружаем справочник типов документов при открытии модалки
   useEffect(() => {
     if (isOpen && type === 'document') {
       const fetchTypes = async () => {
@@ -26,12 +25,10 @@ const AddModal = ({ isOpen, onClose, type, onAdd }) => {
 
   const titles = {
     achievement: 'Добавить достижение',
-    contest: 'Добавить конкурс',
     document: 'Загрузить документ'
   }
 
   const handleSubmit = () => {
-    // 🟢 Для документов проверяем выбранный тип и файл
     if (type === 'document') {
       if (!formData.documentTypeId) {
         alert('Выберите тип документа')
@@ -60,7 +57,6 @@ const AddModal = ({ isOpen, onClose, type, onAdd }) => {
         </div>
         <div className="add-modal-body">
           
-          {/* 🟢 Документ: селект с типами вместо текстового поля */}
           {type === 'document' ? (
             <div className="form-group">
               <label>Тип документа *</label>
@@ -82,7 +78,6 @@ const AddModal = ({ isOpen, onClose, type, onAdd }) => {
             </div>
           )}
 
-          {/* Дата только для достижений и конкурсов */}
           {type !== 'document' && (
             <div className="form-group">
               <label>Дата</label>
@@ -101,15 +96,7 @@ const AddModal = ({ isOpen, onClose, type, onAdd }) => {
               </select>
             </div>
           )}
-          {type === 'contest' && (
-            <div className="form-group">
-              <label>Результат</label>
-              <input type="text" placeholder="Например: 1 место" value={formData.result}
-                onChange={(e) => setFormData({ ...formData, result: e.target.value })} />
-            </div>
-          )}
 
-          {/* Файл для всех трёх типов */}
           <div className="form-group">
             <label>
               {type === 'document' ? 'Файл * (PDF, JPG, PNG)' : 'Файл (PDF, JPG, PNG)'}

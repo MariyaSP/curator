@@ -15,7 +15,10 @@ import contestsIcon from '../../assets/icons/contests.png'
 import heroIcon from '../../assets/icons/hero.png'
 import viewIcon from '../../assets/icons/view.png'
 
+import AddCompetitionModal from './AddCompetitionModal'
+
 const DEFAULT_PHOTO_URL = 'http://localhost:8000/uploads/photos/default_foto.png'
+
 
 const MASKS = {
   phone: (value) => {
@@ -108,6 +111,7 @@ const StudentDetail = ({ studentId }) => {
 
   // 🟢 Состояния для достижений
   const [viewAchievement, setViewAchievement] = useState(null)
+  const [showCompetitionModal, setShowCompetitionModal] = useState(false)
 
   useEffect(() => {
     const fetchReferences = async () => {
@@ -154,6 +158,7 @@ const StudentDetail = ({ studentId }) => {
         setContests(studentData.competitions || [])
         setDocuments(studentData.documents || [])
         setError(null)
+        console.log('📦 studentData.competitions:', studentData.competitions)
       } catch (err) {
         console.error('Ошибка загрузки студента:', err)
         setError('Не удалось загрузить данные студента')
@@ -765,19 +770,53 @@ const StudentDetail = ({ studentId }) => {
           <div className="card right-card">
             <div className="card-header">
               <h3><img src={contestsIcon} alt="Конкурсы" className="section-icon" /> Конкурсы</h3>
-              <button className="add-btn" onClick={() => openAddModal('contest')}>+</button>
+              <button className="add-btn" onClick={() => setShowCompetitionModal(true)}>+</button>
             </div>
             {contests.length > 0 ? (
-              <div className="achievement-group">
-                <div className="year-title">2025</div>
-                {contests.map(c => (
-                  <div key={c.id} className="achievement-item">
-                    <span>{c.title} — {c.result || 'Участие'}</span>
-                    <span><span className="tag competition">Победа</span>{isEditMode && <button className="delete-item" onClick={() => handleDeleteItem('contest', c.id)}>✕</button>}</span>
+              <div className="achievements-list">
+                {Object.entries(
+                  contests.reduce((acc, c) => {
+                    const year = c.competition_date ? new Date(c.competition_date).getFullYear() : '—'
+                    if (!acc[year]) acc[year] = []
+                    acc[year].push(c)
+                    return acc
+                  }, {})
+                )
+                .sort(([a], [b]) => b - a)
+                .map(([year, items]) => (
+                  <div key={year} className="achievement-group">
+                    <div className="year-title">{year}</div>
+                    {items
+                      .sort((a, b) => new Date(b.competition_date) - new Date(a.competition_date))
+                      .map(c => (
+                        <div key={c.id} className="achievement-item clickable">
+                          <div>
+                            <span style={{ fontWeight: 500 }}>{c.competition_title || c.title || '—'}</span>
+                            {c.curator_name && (
+                              <span style={{ fontSize: '11px', color: '#7a8a9e', display: 'block' }}>
+                                Наставник: {c.curator_name}
+                              </span>
+                            )}
+                          </div>
+                          <span className="achievement-item-right">
+                            <span className={`tag ${c.result_type === 'VICTORY' ? 'competition' : c.result_type === 'PRIZE' ? 'sport' : 'academic'}`}>
+                              {c.result_type === 'VICTORY' ? 'Победитель' : 
+                              c.result_type === 'PRIZE' ? 'Призёр' : 
+                              c.result_type === 'PARTICIPATION' ? 'Участник' : 
+                              c.result_type === 'DIPLOMA' ? 'Дипломант' : 'Участие'}
+                            </span>
+                            {isEditMode && (
+                              <button className="delete-item" onClick={(e) => { e.stopPropagation(); handleDeleteItem('contest', c.id) }}>✕</button>
+                            )}
+                          </span>
+                        </div>
+                      ))}
                   </div>
                 ))}
               </div>
-            ) : <div style={{ color: '#7a8a9e', fontSize: '13px', padding: '8px 0' }}>Нет конкурсов</div>}
+            ) : (
+              <div style={{ color: '#7a8a9e', fontSize: '13px', padding: '8px 0' }}>Нет конкурсов</div>
+            )}
           </div>
         </div>
       </div>
@@ -839,6 +878,19 @@ const StudentDetail = ({ studentId }) => {
         </div>
       )}
       <ConfirmModal isOpen={showConfirm} onClose={() => setShowConfirm(false)} onConfirm={confirmConfig.onConfirm} title={confirmConfig.title} message={confirmConfig.message} />
+      
+      <AddCompetitionModal
+        isOpen={showCompetitionModal}
+        onClose={() => setShowCompetitionModal(false)}
+        studentId={studentId}
+        onSuccess={() => {
+          // Обновить список конкурсов студента
+          api.get(`/students/${studentId}`).then(res => {
+            setContests(res.data.competitions || [])
+          })
+        }}
+      />
+      
       <AddModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} type={addModalType} onAdd={(data) => {
         if (addModalType === 'document') handleAddDocument(data)
         else if (addModalType === 'achievement') handleAddAchievement(data)
