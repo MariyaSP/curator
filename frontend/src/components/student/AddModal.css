@@ -15,7 +15,7 @@
   padding: 24px 32px;
   max-width: 500px;
   width: 90%;
-  max-height: 80vh;
+  max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0,0,0,0.15);
 }
@@ -58,4 +58,23 @@
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid #eef2f6;
+}
+
+.form-group-special{
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.form-group.has-error input,
+.form-group.has-error select {
+  border-color: tomato !important;
+  background: #fffafa;
+}
+
+.field-error {
+  display: block;
+  color: tomato;
+  font-size: 11px;
+  margin-top: 4px;
 }

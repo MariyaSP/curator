@@ -21,7 +21,7 @@ class Competition(Base, TimestampMixin):
     __tablename__ = "competitions"
 
     id = Column(Integer, primary_key=True, index=True)
-    curator_id = Column(Integer, ForeignKey("curators.id", ondelete="CASCADE"), nullable=False)
+    
     college_id = Column(Integer, ForeignKey("colleges.id", ondelete="CASCADE"), nullable=False)
     academic_year_id = Column(Integer, ForeignKey("academic_years.id", ondelete="CASCADE"), nullable=False)
 
@@ -32,14 +32,13 @@ class Competition(Base, TimestampMixin):
     scope = Column(SQLEnum(CompetitionScope), nullable=False, default=CompetitionScope.INTERNAL)
 
     # Отношения
-    curator = relationship("Curator", back_populates="competitions")
+    # curator = relationship("Curator", back_populates="competitions")
     college = relationship("College", back_populates="competitions")
     academic_year = relationship("AcademicYear", back_populates="competitions")
     participants = relationship("CompetitionParticipant", back_populates="competition", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index('ix_competitions_college_id', 'college_id'),
-        Index('ix_competitions_curator_id', 'curator_id'),
         Index('ix_competitions_academic_year_id', 'academic_year_id'),
         Index('ix_competitions_competition_date', 'competition_date'),
         Index('ix_competitions_format', 'format'),

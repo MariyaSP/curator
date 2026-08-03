@@ -38,6 +38,7 @@ app.add_middleware(
 os.makedirs("uploads/photos", exist_ok=True)
 os.makedirs("uploads/documents", exist_ok=True)
 os.makedirs("uploads/reports", exist_ok=True)
+os.makedirs("uploads/competitions", exist_ok=True)
 
 # Монтируем папку uploads для доступа по URL
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

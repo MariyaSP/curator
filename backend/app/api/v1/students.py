@@ -29,6 +29,7 @@ router = APIRouter(prefix="/students", tags=["Students"])
 PHOTOS_DIR = "uploads/photos"
 DOCUMENTS_DIR = "uploads/documents"
 ACHIEVEMENTS_DIR = "uploads/achievements"
+COMPETITIONS_DIR = "uploads/competitions"
 
 
 @router.get("/", response_model=List[StudentRead])
@@ -226,6 +227,7 @@ def get_student_by_id(
     data.achievements = [AchievementRead.model_validate(a) for a in achievements]
     
     # 🟢 ИСПРАВЛЕНО: Загружаем участия в конкурсах — все поля передаются при создании
+# Загружаем участия в конкурсах
     participants = db.query(CompetitionParticipant).options(
         joinedload(CompetitionParticipant.competition)
     ).filter(
@@ -236,24 +238,28 @@ def get_student_by_id(
     for p in participants:
         # Явно загружаем competition
         competition = db.query(Competition).filter(Competition.id == p.competition_id).first()
+        
+        title = None
+        comp_date = None
         curator_name = None
-        if competition and competition.curator and competition.curator.user:
-            curator_name = competition.curator.user.full_name
+        if competition:
+            title = competition.title
+            comp_date = competition.competition_date
+        if p.curator and p.curator.user:
+            curator_name = p.curator.user.full_name
         
         comp_data = CompetitionParticipantRead(
             id=p.id,
             student_id=p.student_id,
             competition_id=p.competition_id,
-            competition_title=competition.title if competition else None,
-            competition_date=competition.competition_date if competition else None,
+            competition_title=title,
+            competition_date=comp_date,
             curator_name=curator_name,
             result_type=p.result_type.value.upper() if p.result_type else None,
-            result_description=p.result_description,
             file_path=p.file_path,
             file_type=p.file_type.value if p.file_type else None,
             created_at=p.created_at,
         )
-        print(f"🏆 competition_title={comp_data.competition_title}, competition_date={comp_data.competition_date}")
         data.competitions.append(comp_data)
 
     return data
@@ -409,6 +415,40 @@ def update_student(
 
     docs = db.query(StudentDocument).filter(StudentDocument.student_id == student_id).all()
     data.documents = [DocumentRead.model_validate(d) for d in docs]
+
+    # 🟢 ДОБАВЛЕНО: возвращаем достижения
+    achievements = db.query(StudentAchievement).filter(
+        StudentAchievement.student_id == student_id
+    ).order_by(StudentAchievement.achievement_date.desc()).all()
+    data.achievements = [AchievementRead.model_validate(a) for a in achievements]
+
+    # 🟢 ДОБАВЛЕНО: возвращаем конкурсы
+    participants = db.query(CompetitionParticipant).filter(
+        CompetitionParticipant.student_id == student_id
+    ).all()
+    data.competitions = []
+    for p in participants:
+        title = None
+        comp_date = None
+        curator_name = None
+        if p.competition:
+            title = p.competition.title
+            comp_date = p.competition.competition_date
+        if p.curator and p.curator.user:
+            curator_name = p.curator.user.full_name
+        
+        data.competitions.append(CompetitionParticipantRead(
+            id=p.id,
+            student_id=p.student_id,
+            competition_id=p.competition_id,
+            competition_title=title,
+            competition_date=comp_date,
+            curator_name=curator_name,
+            result_type=p.result_type.value.upper() if p.result_type else None,
+            file_path=p.file_path,
+            file_type=p.file_type.value if p.file_type else None,
+            created_at=p.created_at,
+        ))
 
     return data
 
@@ -763,3 +803,72 @@ def delete_achievement(
     db.delete(achievement)
     db.commit()
     return None
+
+@router.post("/{student_id}/competitions/{participant_id}/upload")
+async def upload_competition_file(
+    student_id: int,
+    participant_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Загрузить файл для участника конкурса."""
+    participant = db.query(CompetitionParticipant).filter(
+        CompetitionParticipant.id == participant_id,
+        CompetitionParticipant.student_id == student_id
+    ).first()
+    if not participant:
+        raise HTTPException(status_code=404, detail="Участник не найден")
+
+    allowed_types = ['application/pdf', 'image/jpeg', 'image/png']
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Разрешены только PDF, JPG, PNG")
+
+    ext_map = {'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png'}
+    ext = ext_map.get(file.content_type, 'jpg')
+
+    student = db.query(Student).filter(Student.id == student_id).first()
+    safe_comp_title = "".join(c for c in (participant.competition.title or 'contest') if c.isalnum() or c in (' ', '-', '_')).rstrip()[:30]
+    filename = f"{student.personal_number}_{participant_id}_{safe_comp_title}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.{ext}"
+    
+    os.makedirs(COMPETITIONS_DIR, exist_ok=True)
+    file_path = os.path.join(COMPETITIONS_DIR, filename)
+    
+    # Удаляем старый файл если есть
+    if participant.file_path:
+        old_path = os.path.join(os.getcwd(), COMPETITIONS_DIR, os.path.basename(participant.file_path))
+        if os.path.exists(old_path):
+            os.remove(old_path)
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    participant.file_path = f"/uploads/competitions/{filename}"
+    participant.file_type = ext
+    participant.file_name = file.filename
+    db.commit()
+    
+    return {"file_path": participant.file_path, "message": "Файл загружен"}
+
+@router.get("/{student_id}/competitions/{participant_id}/view")
+def view_competition_file(
+    student_id: int,
+    participant_id: int,
+    db: Session = Depends(get_db)
+):
+    """Просмотр файла конкурса."""
+    participant = db.query(CompetitionParticipant).filter(
+        CompetitionParticipant.id == participant_id,
+        CompetitionParticipant.student_id == student_id
+    ).first()
+    if not participant or not participant.file_path:
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    
+    file_path = os.path.join(os.getcwd(), COMPETITIONS_DIR, os.path.basename(participant.file_path))
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    
+    media_type_map = {'pdf': 'application/pdf', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png'}
+    media_type = media_type_map.get(participant.file_type, 'application/octet-stream')
+    
+    return FileResponse(file_path, media_type=media_type)

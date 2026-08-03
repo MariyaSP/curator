@@ -15,7 +15,6 @@ class CompetitionParticipantRead(BaseModel):
     competition_date: Optional[date] = None
     curator_name: Optional[str] = None
     result_type: Optional[str] = None
-    result_description: Optional[str] = None
     file_path: Optional[str] = None
     file_type: Optional[str] = None
     created_at: Optional[datetime] = None  

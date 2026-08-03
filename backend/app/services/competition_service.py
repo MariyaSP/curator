@@ -32,11 +32,19 @@ def get_competition_by_id(db: Session, competition_id: int) -> Competition:
 
 
 def create_competition(db: Session, competition_in: CompetitionCreate) -> Competition:
-    curator = db.query(Curator).filter(Curator.id == competition_in.curator_id).first()
-    if not curator:
-        raise HTTPException(status_code=404, detail="Куратор не найден")
-
-    competition = Competition(**competition_in.model_dump())
+    # Проверяем, существует ли такой конкурс
+    existing = db.query(Competition).filter(
+        Competition.title == competition_in.title,
+        Competition.competition_date == competition_in.competition_date,
+        Competition.format == competition_in.format,
+        Competition.scope == competition_in.scope,
+        Competition.college_id == competition_in.college_id
+    ).first()
+    
+    if existing:
+        return existing
+    
+    competition = Competition(**competition_in.dict())
     db.add(competition)
     db.commit()
     db.refresh(competition)

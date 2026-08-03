@@ -1,5 +1,3 @@
-// frontend/src/components/student/StudentDetail.jsx
-
 import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../common/Button'
@@ -89,6 +87,7 @@ const StudentDetail = ({ studentId }) => {
   
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
   const fileInputRef = useRef(null)
+  const [photoVersion, setPhotoVersion] = useState(Date.now())
 
   const [editData, setEditData] = useState({})
   const [fieldErrors, setFieldErrors] = useState({})
@@ -112,6 +111,9 @@ const StudentDetail = ({ studentId }) => {
   // 🟢 Состояния для достижений
   const [viewAchievement, setViewAchievement] = useState(null)
   const [showCompetitionModal, setShowCompetitionModal] = useState(false)
+  const [viewContest, setViewContest] = useState(null)
+
+  const openContestView = (contest) => setViewContest(contest)
 
   useEffect(() => {
     const fetchReferences = async () => {
@@ -142,8 +144,10 @@ const StudentDetail = ({ studentId }) => {
         const response = await api.get(`/students/${studentId}`)
         const studentData = response.data
         
-        setStudent(studentData)
-        
+        setStudent({
+          ...studentData,
+          photo: studentData.photo ? `http://localhost:8000${studentData.photo}?v=${Date.now()}` : null
+})
         setEditData({
           ...studentData,
           social_status_id: studentData.social_status_id 
@@ -322,6 +326,23 @@ const StudentDetail = ({ studentId }) => {
     setShowConfirm(true)
   }
 
+  const handleDeleteContest = async (participantId) => {
+    setConfirmConfig({
+      title: 'Удаление конкурса',
+      message: 'Вы уверены, что хотите удалить эту запись?',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/competitions/participants/${participantId}`)
+          setContests(contests.filter(c => c.id !== participantId))
+          setShowConfirm(false)
+        } catch (err) {
+          console.error('Ошибка удаления конкурса:', err)
+          setShowConfirm(false)
+        }
+      }
+    })
+    setShowConfirm(true)
+  }
   const handleAddAchievement = async (formData) => {
     try {
       const fd = new FormData()
@@ -392,7 +413,7 @@ const StudentDetail = ({ studentId }) => {
     }
   }
 
-  const handleSave = async () => {
+const handleSave = async () => {
     if (!validateForm()) {
       const firstErrorField = Object.keys(fieldErrors)[0]
       if (firstErrorField) {
@@ -433,9 +454,11 @@ const StudentDetail = ({ studentId }) => {
         })),
       }
       const response = await api.put(`/students/${studentId}`, dataToSave)
-      setStudent(response.data)
+      setStudent(prev => ({ ...prev, ...response.data }))
       setFamilyMembers(response.data.family_members || [])
       setDocuments(response.data.documents || [])
+      setAchievements(response.data.achievements || [])  // ← добавить
+      setContests(response.data.competitions || [])       // ← добавить
       setIsEditMode(false)
       setFieldErrors({})
     } catch (err) {
@@ -451,7 +474,7 @@ const StudentDetail = ({ studentId }) => {
     }
   }
 
-  const handleCancel = () => {
+const handleCancel = () => {
     setEditData({
       ...student,
       social_status_id: student.social_status_id || (socialStatuses.find(s => s.code === 'full')?.id) || '',
@@ -459,6 +482,8 @@ const StudentDetail = ({ studentId }) => {
     })
     setFamilyMembers(student.family_members || [])
     setDocuments(student.documents || [])
+    setAchievements(student.achievements || [])   // ← добавить
+    setContests(student.competitions || [])       // ← добавить
     setFieldErrors({})
     setIsEditMode(false)
   }
@@ -466,34 +491,267 @@ const StudentDetail = ({ studentId }) => {
   const handleUploadClick = () => fileInputRef.current?.click()
 
   const handleFileChange = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-    if (!allowedTypes.includes(file.type)) { alert('❌ Разрешены только изображения (JPEG, PNG, GIF, WEBP)'); return }
-    if (file.size > 5 * 1024 * 1024) { alert('❌ Файл слишком большой. Максимальный размер: 5 МБ'); return }
-    setIsUploadingPhoto(true)
-    try {
-      const formData = new FormData()
-      formData.append('photo', file)
-      const response = await api.post(`/students/${studentId}/photo`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
-      setStudent({ ...student, photo: `${response.data.photo_url}?t=${Date.now()}` })
-      setEditData(prev => ({ ...prev, photo: response.data.photo_url }))
-    } catch (err) {
-      console.error('❌ Ошибка загрузки фото:', err)
-      alert(`❌ ${err.response?.data?.detail || 'Не удалось загрузить фото'}`)
-    } finally { setIsUploadingPhoto(false); if (fileInputRef.current) fileInputRef.current.value = '' }
+      const file = e.target.files?.[0]
+      if (!file) return
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+      if (!allowedTypes.includes(file.type)) { alert('❌ Разрешены только изображения (JPEG, PNG, GIF, WEBP)'); return }
+      if (file.size > 5 * 1024 * 1024) { alert('❌ Файл слишком большой. Максимальный размер: 5 МБ'); return }
+      setIsUploadingPhoto(true)
+      try {
+        const formData = new FormData()
+        formData.append('photo', file)
+        const response = await api.post(`/students/${studentId}/photo`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+        // Добавляем timestamp для сброса кэша
+        const newPhotoUrl = `http://localhost:8000${response.data.photo_url}?v=${Date.now()}`
+        setStudent({ ...student, photo: newPhotoUrl })
+        setPhotoVersion(Date.now())
+        setEditData(prev => ({ ...prev, photo: response.data.photo_url }))
+      } catch (err) {
+        console.error('❌ Ошибка загрузки фото:', err)
+        alert(`❌ ${err.response?.data?.detail || 'Не удалось загрузить фото'}`)
+      } finally { 
+        setIsUploadingPhoto(false)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+      }
   }
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank', 'width=900,height=700')
     if (!printWindow) { alert('Пожалуйста, разрешите всплывающие окна для этого сайта'); return }
     const photoUrlFull = student.photo ? `http://localhost:8000${student.photo}` : null
-    const printHTML = `...` // твоя печатная форма без изменений
-    printWindow.document.write(printHTML)
-    printWindow.document.close()
-  }
+
+    const formatPrintDate = (dateStr) => {
+      if (!dateStr) return '—'
+      if (dateStr.includes('-')) {
+        const [y, m, d] = dateStr.split('-')
+        return `${d}.${m}.${y}`
+      }
+      return dateStr
+    }
+    
+  const printHTML = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Карточка студента ${student.full_name || ''}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+          font-family: 'Times New Roman', serif; 
+          font-size: 16pt; 
+          color: #000;
+          padding: 15mm 20mm;
+  
+        }
+        .header { 
+          display: flex; 
+          align-items: flex-start;
+          gap: 20px;
+          border-bottom: 2px solid #000;
+          padding-bottom: 15px;
+          margin-bottom: 15px;
+        }
+        .photo-frame {
+          width: 30mm;
+          height: 40mm;
+          border: 1px solid #000;
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 9pt;
+          color: #999;
+          text-align: center;
+          overflow: hidden;
+        }
+        .photo-frame img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .header-info { flex: 1; }
+        .header-info h1 { font-size: 16pt; margin-bottom: 5px; }
+        .header-info p { font-size: 11pt; margin-bottom: 2px; }
+        .section {
+          margin-bottom: 12px;
+        }
+        .section h3 {
+          font-size: 16pt;
+          border-bottom: 1px solid #000;
+          margin-bottom: 8px;
+          margin-top: 25px;
+          padding-bottom: 3px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+        .grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 4px 30px;
+        }
+        .grid-3 {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 4px 20px;
+        }
+        .field { 
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 2px 0;
+          font-size: 11pt;
+        }
+        .field .label { 
+          font-weight: bold; 
+          font-size: 13pt;
+          color: #333;
+          display: block;
+        }
+        .field .value { 
+          border-bottom: 1px solid #7d7d7d;
+          min-height: 18px;
+          padding: 1px 0;
+        }
+        .family-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 6px;
+        }
+        .family-table th {
+          font-size: 9pt;
+          text-align: left;
+          border-bottom: 1px solid #000;
+          padding: 4px 6px;
+          font-weight: bold;
+        }
+
+        .footer {
+          margin-top: 30px;
+          display: flex;
+          justify-content: space-between;
+          font-size: 11pt;
+        }
+        .footer div { 
+          border-top: 1px solid #000; 
+          padding-top: 4px;
+          min-width: 120px;
+          text-align: center;
+        }
+        .flexi{
+        display: flex;
+        gap: 20px;
+        }
+
+      .family-table td {
+        font-size: 9pt;
+        padding: 4px 6px;
+        border-bottom: 1px dotted #ccc;
+      }
+
+        @media print {
+          body { -webkit-print-color-adjust: exact; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div class="photo-frame">
+          
+        </div>
+        <div class="header-info">
+          <h1>${student.full_name || '—'}</h1>
+          <p><strong>Номер:</strong> ${student.personal_number || '—'} &nbsp;|&nbsp; <strong>Группа:</strong> ${student.group_name || '—'}</p>
+          <p><strong>Специальность:</strong> ${getSpecialtyName()}</p>
+          <p><strong>Куратор:</strong> ${getCuratorName()}</p>
+          <p><strong>Статус:</strong> ${student.is_active ? 'Обучается' : 'Не активен'}</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Личные данные</h3>
+        <div class="grid">
+          <div class="field"><span class="label">Дата рождения</span><span class="value">${formatPrintDate(student.birth_date) || '—'}</span></div>
+          <div class="field"><span class="label">Пол</span><span class="value">${student.gender === 'MALE' ? 'Мужской' : 'Женский'}</span></div>
+          <div class="field"><span class="label">Гражданство</span><span class="value">${student.citizenship || '—'}</span></div>
+          <div class="field"><span class="label">Email</span><span class="value">${student.email || '—'}</span></div>
+          <div class="field"><span class="label">Телефон</span><span class="value">${student.phone || '—'}</span></div>
+          <div class="field"><span class="label">Социальный статус</span><span class="value">${getSocialStatusLabel(student.social_status_id)}</span></div>
+          <div class="field"><span class="label">Группа здоровья</span><span class="value">${getHealthGroupLabel(student.health_group_id)}</span></div>
+          ${student.is_disabled ? `<div class="field"><span class="label">Инвалидность</span><span class="value">${student.disability_group || 'Да'}</span></div>` : ''}
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Документы</h3>
+        <div class="grid-3">
+          <div class="field"><span class="label">ИНН</span><span class="value">${student.inn || '—'}</span></div>
+          <div class="field"><span class="label">СНИЛС</span><span class="value">${student.snils || '—'}</span></div>
+          <div class="field"><span class="label">Мед. полис</span><span class="value">${student.medical_policy || '—'}</span></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Паспортные данные</h3>
+        <div class="flexi">
+          <div class="field"><span class="label">Серия</span><span class="value">${student.passport_series || '—'}</span></div>
+          <div class="field"><span class="label">Номер</span><span class="value">${student.passport_number || '—'}</span></div>
+          <div class="field"><span class="label">Дата выдачи</span><span class="value">${formatPrintDate(student.passport_issue_date) || '—'}</span></div>
+          
+        </div>
+        <div class="field" style="margin-top:6px;"><span class="label">Кем выдан</span><span class="value">${student.passport_issued_by || '—'}</span></div>
+        <div class="field"><span class="label">Код подразд.</span><span class="value">${student.passport_department_code || '—'}</span></div>
+      </div>
+
+      <div class="section">
+        <h3>Адреса</h3>
+        <div class="grid">
+          <div class="field" style="grid-column: span 2;"><span class="label">Адрес регистрации</span><span class="value">${addressString('registration')}</span></div>
+          <div class="field" style="grid-column: span 2;"><span class="label">Фактический адрес</span><span class="value">${addressString('actual')}</span></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Состав семьи</h3>
+        ${familyMembers.length > 0 ? `
+          <table class="family-table">
+            <tr>
+              <th>ФИО</th>
+              <th>Родство</th>
+              <th>Дата рождения</th>
+              <th>Место работы</th>
+              <th>Телефон</th>
+            </tr>
+            ${familyMembers.map(m => `
+              <tr>
+                <td>${m.full_name}</td>
+                <td>${m.relationship_type || m.relationship || '—'}</td>
+                <td>${formatPrintDate(m.birth_date) || '—'}</td>
+                <td>${m.work_place || '—'}</td>
+                <td style="white-space:nowrap" >${m.phone || '—'}</td>
+              </tr>
+            `).join('')}
+          </table>
+        ` : '<p>Нет данных</p>'}
+      </div>
+
+      <div class="footer">
+        <div>Дата: ___________</div>
+        <div>Подпись куратора: ___________</div>
+      </div>
+
+      <script>
+        window.onload = () => { window.print(); }
+      </script>
+    </body>
+    </html>
+  `
+
+  printWindow.document.write(printHTML)
+  printWindow.document.close()
+}
 
   const passportString = () => {
     if (!student) return '—'
@@ -529,7 +787,11 @@ const StudentDetail = ({ studentId }) => {
   if (error) return <div className="error">{error}</div>
   if (!student) return <div className="error">Студент не найден</div>
 
-  const photoUrl = student.photo ? `http://localhost:8000${student.photo}` : DEFAULT_PHOTO_URL
+  const photoUrl = student?.photo 
+      ? student.photo.includes('?v=') 
+        ? student.photo 
+        : `http://localhost:8000${student.photo}?v=${photoVersion}` 
+      : DEFAULT_PHOTO_URL
 
   return (
     <div className={`student-detail ${isEditMode ? 'edit-mode' : ''}`}>
@@ -559,9 +821,11 @@ const StudentDetail = ({ studentId }) => {
           <div className="photo-group">{student.group_name || '—'} · {getSpecialtyName()}</div>
           <div className="photo-curator">Куратор: {getCuratorName()}</div>
           <div style={{ display: 'flex', gap: '10px', marginTop: '10px', justifyContent: 'center' }}>
+          {isEditMode && (
             <button className="photo-upload-btn" onClick={handleUploadClick} disabled={isUploadingPhoto}>
               {isUploadingPhoto ? '⏳ Загрузка...' : '📷 Загрузить фото'}
             </button>
+          )}
             <button className="photo-upload-btn" onClick={handlePrint} style={{ background: '#6c757d', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '14px' }}>
               🖨️ Печать карточки
             </button>
@@ -642,7 +906,7 @@ const StudentDetail = ({ studentId }) => {
         <div className="card right-card">
           <div className="card-header">
             <h3><img src={downloadIcon} alt="Документы" className="section-icon" /> Документы</h3>
-            <button className="add-btn" onClick={() => openAddModal('document')}>+</button>
+            {isEditMode && <button className="add-btn" onClick={() => openAddModal('document')}>+</button>}
           </div>
           <ul>
             {documents.length > 0 ? documents.map(doc => (
@@ -738,7 +1002,7 @@ const StudentDetail = ({ studentId }) => {
           <div className="card right-card">
             <div className="card-header">
               <h3><img src={achievementsIcon} alt="Достижения" className="section-icon" /> Достижения</h3>
-              <button className="add-btn" onClick={() => openAddModal('achievement')}>+</button>
+              {isEditMode && <button className="add-btn" onClick={() => openAddModal('achievement')}>+</button>}
             </div>
             {achievements.length > 0 ? (
               <div className="achievements-list">
@@ -770,7 +1034,7 @@ const StudentDetail = ({ studentId }) => {
           <div className="card right-card">
             <div className="card-header">
               <h3><img src={contestsIcon} alt="Конкурсы" className="section-icon" /> Конкурсы</h3>
-              <button className="add-btn" onClick={() => setShowCompetitionModal(true)}>+</button>
+              {isEditMode && <button className="add-btn" onClick={() => setShowCompetitionModal(true)}>+</button>}
             </div>
             {contests.length > 0 ? (
               <div className="achievements-list">
@@ -789,7 +1053,7 @@ const StudentDetail = ({ studentId }) => {
                     {items
                       .sort((a, b) => new Date(b.competition_date) - new Date(a.competition_date))
                       .map(c => (
-                        <div key={c.id} className="achievement-item clickable">
+                        <div key={c.id} className="achievement-item clickable" onClick={() => openContestView(c)}>
                           <div>
                             <span style={{ fontWeight: 500 }}>{c.competition_title || c.title || '—'}</span>
                             {c.curator_name && (
@@ -806,7 +1070,7 @@ const StudentDetail = ({ studentId }) => {
                               c.result_type === 'DIPLOMA' ? 'Дипломант' : 'Участие'}
                             </span>
                             {isEditMode && (
-                              <button className="delete-item" onClick={(e) => { e.stopPropagation(); handleDeleteItem('contest', c.id) }}>✕</button>
+                              <button className="delete-item" onClick={(e) => { e.stopPropagation(); handleDeleteContest(c.id) }}>✕</button>
                             )}
                           </span>
                         </div>
@@ -877,6 +1141,65 @@ const StudentDetail = ({ studentId }) => {
           </div>
         </div>
       )}
+
+      {viewContest && (
+        <div className="add-modal-overlay" onClick={() => setViewContest(null)}>
+          <div className="achievement-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="achievement-detail-header">
+              <div className="achievement-detail-type">
+                <span className={`tag tag-large ${viewContest.result_type === 'VICTORY' ? 'competition' : 'academic'}`}>
+                  {viewContest.result_type === 'VICTORY' ? 'Победитель' : 
+                  viewContest.result_type === 'PRIZE' ? 'Призёр' : 
+                  viewContest.result_type === 'PARTICIPATION' ? 'Участник' : 
+                  viewContest.result_type === 'DIPLOMA' ? 'Дипломант' : 'Участие'}
+                </span>
+              </div>
+              <h2>{viewContest.competition_title || '—'}</h2>
+              <button className="add-modal-close" onClick={() => setViewContest(null)}>×</button>
+            </div>
+            
+            <div className="achievement-detail-body">
+              <div className="achievement-detail-meta">
+                {viewContest.competition_date && (
+                  <div className="meta-item">
+                    <span className="meta-label">Дата</span>
+                    <span className="meta-value">{new Date(viewContest.competition_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                  </div>
+                )}
+                {viewContest.curator_name && (
+                  <div className="meta-item" style={{ marginTop: '8px' }}>
+                    <span className="meta-label">Наставник</span>
+                    <span className="meta-value">{viewContest.curator_name}</span>
+                  </div>
+                )}
+              </div>
+              
+              {viewContest.file_path && (
+                <div className="achievement-detail-file" style={{ marginTop: '16px' }}>
+                  <span className="meta-label">Прикреплённый файл</span>
+                  <div className="file-thumbnail" onClick={() => window.open(`http://localhost:8000/api/v1/students/${studentId}/competitions/${viewContest.id}/view`, '_blank')}>
+                    {viewContest.file_type === 'pdf' ? (
+                      <div className="file-thumbnail-pdf">
+                        <span className="pdf-icon">PDF</span>
+                        <span className="pdf-hint">Нажмите для просмотра</span>
+                      </div>
+                    ) : (
+                      <img 
+                        src={`http://localhost:8000/api/v1/students/${studentId}/competitions/${viewContest.id}/view`} 
+                        alt={viewContest.competition_title}
+                        className="file-thumbnail-img"
+                      />
+                    )}
+                    <div className="file-thumbnail-overlay"><span>🔍 Открыть</span></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+
       <ConfirmModal isOpen={showConfirm} onClose={() => setShowConfirm(false)} onConfirm={confirmConfig.onConfirm} title={confirmConfig.title} message={confirmConfig.message} />
       
       <AddCompetitionModal

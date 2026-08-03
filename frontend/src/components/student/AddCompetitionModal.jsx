@@ -21,12 +21,12 @@ const AddCompetitionModal = ({ isOpen, onClose, studentId, onSuccess }) => {
     competition_date: '',
     format: 'OFFLINE',
     scope: 'INTERNAL',
-    description: '',
     result_type: '',
-    result_description: '',
     file: null,
   })
 
+  const [errors, setErrors] = useState({})
+  const [submitError, setSubmitError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showCuratorList, setShowCuratorList] = useState(false)
   const [showTitleSuggestions, setShowTitleSuggestions] = useState(false)
@@ -46,15 +46,15 @@ const AddCompetitionModal = ({ isOpen, onClose, studentId, onSuccess }) => {
       competition_date: '',
       format: 'OFFLINE',
       scope: 'INTERNAL',
-      description: '',
       result_type: '',
-      result_description: '',
       file: null,
     })
     setSelectedCurator(null)
     setSearchCurator('')
     setShowCuratorList(false)
     setShowTitleSuggestions(false)
+    setErrors({})
+    setSubmitError('')
   }
 
   const loadStudentIds = async () => {
@@ -88,6 +88,7 @@ const AddCompetitionModal = ({ isOpen, onClose, studentId, onSuccess }) => {
 
   const handleTitleChange = (value) => {
     setFormData({ ...formData, title: value })
+    if (errors.title) setErrors(prev => ({ ...prev, title: '' }))
     if (value.trim().length > 0) {
       const filtered = existingCompetitions.filter(t =>
         t.toLowerCase().includes(value.toLowerCase())
@@ -115,49 +116,61 @@ const AddCompetitionModal = ({ isOpen, onClose, studentId, onSuccess }) => {
     setSelectedCurator(curator)
     setSearchCurator(curator.full_name)
     setShowCuratorList(false)
+    if (errors.curator) setErrors(prev => ({ ...prev, curator: '' }))
+  }
+
+  const validate = () => {
+    const newErrors = {}
+    if (!formData.title.trim()) newErrors.title = 'Введите название конкурса'
+    if (!formData.competition_date) newErrors.competition_date = 'Выберите дату конкурса'
+    if (!selectedCurator) newErrors.curator = 'Выберите преподавателя-наставника'
+    if (!collegeId || !academicYearId) newErrors.submit = 'Не удалось загрузить данные колледжа'
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async () => {
-    if (!formData.title.trim()) { alert('Введите название конкурса'); return }
-    if (!formData.competition_date) { alert('Выберите дату конкурса'); return }
-    if (!selectedCurator) { alert('Выберите преподавателя-наставника'); return }
-    if (!collegeId || !academicYearId) { alert('Не удалось загрузить данные. Попробуйте позже.'); return }
+    if (!validate()) return
 
     setLoading(true)
+    setSubmitError('')
     try {
       const compRes = await api.post('/competitions/', {
         title: formData.title,
-        description: formData.description || '',
         competition_date: formData.competition_date,
         format: formData.format,
         scope: formData.scope,
-        curator_id: selectedCurator.id,
         college_id: collegeId,
         academic_year_id: academicYearId,
       })
 
-      await api.post('/competitions/participants', {
+      const participantRes = await api.post('/competitions/participants', {
         competition_id: compRes.data.id,
         student_id: studentId,
+        curator_id: selectedCurator.id,
         result_type: formData.result_type || null,
-        result_description: formData.result_description || null,
-        })
-    //   const fd = new FormData()
-    //   fd.append('competition_id', compRes.data.id)
-    //   fd.append('student_id', studentId)
-    //   if (formData.result_type) fd.append('result_type', formData.result_type)
-    //   if (formData.result_description) fd.append('result_description', formData.result_description)
-    //   if (formData.file) fd.append('file', formData.file)
+      })
 
-    //   await api.post('/competitions/participants', fd, {
-    //     headers: { 'Content-Type': 'multipart/form-data' }
-    //   })
+      if (formData.file && participantRes.data.id) {
+        const fd = new FormData()
+        fd.append('file', formData.file)
+        await api.post(`/students/${studentId}/competitions/${participantRes.data.id}/upload`, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+      }
 
       onSuccess()
       onClose()
     } catch (err) {
       console.error('Ошибка добавления конкурса:', err)
-      alert(err.response?.data?.detail || 'Не удалось добавить конкурс')
+      const detail = err.response?.data?.detail
+      if (typeof detail === 'string') {
+        setSubmitError(detail)
+      } else if (Array.isArray(detail)) {
+        setSubmitError(detail.map(d => d.msg).join('; '))
+      } else {
+        setSubmitError('Не удалось добавить конкурс')
+      }
     } finally {
       setLoading(false)
     }
@@ -174,17 +187,22 @@ const AddCompetitionModal = ({ isOpen, onClose, studentId, onSuccess }) => {
         </div>
 
         <div className="add-modal-body">
-          <div className="form-group" style={{ position: 'relative' }}>
+          {submitError && (
+            <div className="form-error-banner" style={{ marginBottom: '12px' }}>{submitError}</div>
+          )}
+
+          {/* Название */}
+          <div className={`form-group ${errors.title ? 'has-error' : ''}`} style={{ position: 'relative' }}>
             <label>Название конкурса *</label>
             <input
               type="text"
-              placeholder="Введите название конкурса"
+              placeholder="Введите название"
               value={formData.title}
               onChange={(e) => handleTitleChange(e.target.value)}
-              onFocus={() => formData.title.trim() && titleSuggestions.length > 0 && setShowTitleSuggestions(true)}
               onBlur={() => setTimeout(() => setShowTitleSuggestions(false), 200)}
               autoFocus
             />
+            {errors.title && <span className="field-error">{errors.title}</span>}
             {showTitleSuggestions && (
               <div className="suggestions-dropdown">
                 {titleSuggestions.map((t, i) => (
@@ -196,46 +214,52 @@ const AddCompetitionModal = ({ isOpen, onClose, studentId, onSuccess }) => {
             )}
           </div>
 
-          <div className="form-group">
-            <label>Дата конкурса *</label>
-            <input
-              type="date"
-              value={formData.competition_date}
-              onChange={(e) => setFormData({ ...formData, competition_date: e.target.value })}
-            />
+          {/* Дата + Формат + Уровень */}
+          <div className="form-group-special">
+            <div className={`form-group ${errors.competition_date ? 'has-error' : ''}`} style={{ flex: 1 }}>
+              <label>Дата *</label>
+              <input
+                type="date"
+                value={formData.competition_date}
+                onChange={(e) => {
+                  setFormData({ ...formData, competition_date: e.target.value })
+                  if (errors.competition_date) setErrors(prev => ({ ...prev, competition_date: '' }))
+                }}
+              />
+              {errors.competition_date && <span className="field-error">{errors.competition_date}</span>}
+            </div>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Формат</label>
+              <select value={formData.format} onChange={(e) => setFormData({ ...formData, format: e.target.value })}>
+                <option value="OFFLINE">Очный</option>
+                <option value="ONLINE">Заочный</option>
+              </select>
+            </div>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Уровень</label>
+              <select value={formData.scope} onChange={(e) => setFormData({ ...formData, scope: e.target.value })}>
+                <option value="INTERNAL">Внутренний</option>
+                <option value="CITY">Городской</option>
+                <option value="REGIONAL">Региональный</option>
+                <option value="OBLAST">Областной</option>
+                <option value="INTERREGIONAL">Межрегиональный</option>
+                <option value="NATIONAL">Всероссийский</option>
+                <option value="INTERNATIONAL">Международный</option>
+              </select>
+            </div>
           </div>
 
-          <div className="form-group">
-            <label>Формат</label>
-            <select value={formData.format} onChange={(e) => setFormData({ ...formData, format: e.target.value })}>
-              <option value="OFFLINE">Очный</option>
-              <option value="ONLINE">Заочный</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Уровень</label>
-            <select value={formData.scope} onChange={(e) => setFormData({ ...formData, scope: e.target.value })}>
-              <option value="INTERNAL">Внутренний</option>
-              <option value="CITY">Городской</option>
-              <option value="REGIONAL">Региональный</option>
-              <option value="OBLAST">Областной</option>
-              <option value="INTERREGIONAL">Межрегиональный</option>
-              <option value="NATIONAL">Всероссийский</option>
-              <option value="INTERNATIONAL">Международный</option>
-            </select>
-          </div>
-
-          <div className="form-group" style={{ position: 'relative' }}>
+          {/* Наставник */}
+          <div className={`form-group ${errors.curator ? 'has-error' : ''}`} style={{ position: 'relative' }}>
             <label>Преподаватель-наставник *</label>
             <input
               type="text"
               placeholder="Поиск преподавателя"
               value={searchCurator}
               onChange={(e) => handleSearchCurator(e.target.value)}
-              onFocus={() => setShowCuratorList(true)}
               onBlur={() => setTimeout(() => setShowCuratorList(false), 200)}
             />
+            {errors.curator && <span className="field-error">{errors.curator}</span>}
             {showCuratorList && (
               <div className="suggestions-dropdown">
                 {curators.map(c => (
@@ -247,11 +271,6 @@ const AddCompetitionModal = ({ isOpen, onClose, studentId, onSuccess }) => {
                     {c.full_name}
                   </div>
                 ))}
-                {curators.length === 0 && (
-                  <div className="suggestion-item" style={{ color: '#7a8a9e', cursor: 'default' }}>
-                    Ничего не найдено
-                  </div>
-                )}
               </div>
             )}
             {selectedCurator && (
@@ -261,16 +280,7 @@ const AddCompetitionModal = ({ isOpen, onClose, studentId, onSuccess }) => {
             )}
           </div>
 
-          <div className="form-group">
-            <label>Описание</label>
-            <textarea
-              rows="2"
-              placeholder="Дополнительная информация о конкурсе"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-          </div>
-
+          {/* Результат */}
           <div className="form-group">
             <label>Результат</label>
             <select value={formData.result_type} onChange={(e) => setFormData({ ...formData, result_type: e.target.value })}>
@@ -282,16 +292,7 @@ const AddCompetitionModal = ({ isOpen, onClose, studentId, onSuccess }) => {
             </select>
           </div>
 
-          <div className="form-group">
-            <label>Описание результата</label>
-            <input
-              type="text"
-              placeholder="Например: 1 место"
-              value={formData.result_description}
-              onChange={(e) => setFormData({ ...formData, result_description: e.target.value })}
-            />
-          </div>
-
+          {/* Файл */}
           <div className="form-group">
             <label>Файл (диплом, сертификат)</label>
             <input

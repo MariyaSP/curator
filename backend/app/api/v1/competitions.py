@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends, Query, status
+import os
+from fastapi import APIRouter, Depends, Query, status, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import date
+from app.models import CompetitionParticipant
+
 
 from app.core.database import get_db
 from app.schemas import (
@@ -9,7 +12,8 @@ from app.schemas import (
     CompetitionUpdate,
     CompetitionRead,
     CompetitionParticipantCreate,
-    CompetitionParticipantRead
+    CompetitionParticipantRead,
+    
 )
 from app.services import competition_service
 
@@ -98,8 +102,8 @@ def add_participant_to_competition(
         id=participant.id,
         competition_id=participant.competition_id,
         student_id=participant.student_id,
+        curator_id=participant.curator_id,
         result_type=participant.result_type.value.upper() if participant.result_type else None,
-        result_description=participant.result_description,
         file_path=participant.file_path,
         file_type=participant.file_type.value if participant.file_type else None,
         created_at=participant.created_at,
@@ -111,8 +115,26 @@ def remove_participant_from_competition(
     participant_id: int,
     db: Session = Depends(get_db)
 ):
-    """Удалить участника из конкурса"""
-    competition_service.remove_participant(db, participant_id)
+    """Удалить участника из конкурса."""
+    participant = db.query(CompetitionParticipant).filter(
+        CompetitionParticipant.id == participant_id
+    ).first()
+    if not participant:
+        raise HTTPException(status_code=404, detail="Участник не найден")
+    
+    # Удаляем файл с диска
+    if participant.file_path:
+        file_path = os.path.join(os.getcwd(), "uploads/competitions", os.path.basename(participant.file_path))
+        print(f"🗑️ Пытаемся удалить: {file_path}")
+        print(f"   Файл существует: {os.path.exists(file_path)}")
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            print(f"   ✅ Удалён")
+        else:
+            print(f"   ❌ Файл не найден")
+    
+    db.delete(participant)
+    db.commit()
     return None
 
 @router.get("/by-curator/{curator_id}", response_model=List[CompetitionRead])

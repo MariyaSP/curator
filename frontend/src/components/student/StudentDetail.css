@@ -328,8 +328,11 @@
   font-weight: 500;
 }
 .tag.academic { background: #e3f0ff; color: #1a5a9c; }
+.tag.creative {background: #f0e3ff; color: #a62092;}
 .tag.sport { background: #e3f5e9; color: #0f6b3a; }
 .tag.competition { background: #fef3d7; color: #8a6a00; }
+.tag.academic { background: #ebfcff; color: #007e8a; }
+
 
 .delete-item {
   display: none;

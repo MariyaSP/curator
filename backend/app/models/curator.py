@@ -14,5 +14,5 @@ class Curator(Base, TimestampMixin):
     college = relationship("College", back_populates="curators")
     groups = relationship("Group", back_populates="curator")
     events = relationship("Event", back_populates="curator")
-    competitions = relationship("Competition", back_populates="curator")
+    
     generated_reports = relationship("GeneratedReport", back_populates="curator")
