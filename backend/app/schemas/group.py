@@ -9,6 +9,7 @@ class GroupBase(BaseModel):
     start_year: int = Field(..., ge=2000, le=2100)
     end_year: int = Field(..., ge=2000, le=2100)
     specialization: Optional[str] = Field(None, max_length=100)
+    group_type: Optional[str] = 'budget'
 
 class GroupCreate(GroupBase):
     pass

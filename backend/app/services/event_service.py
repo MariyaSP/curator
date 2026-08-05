@@ -40,7 +40,7 @@ def create_event(db: Session, event_in) -> Event:
     if not category:
         raise HTTPException(status_code=404, detail="Категория не найдена")
 
-    event = Event(**event_in.model_dump())
+    event = Event(**event_in.dict())
     db.add(event)
     db.commit()
     db.refresh(event)
@@ -49,7 +49,7 @@ def create_event(db: Session, event_in) -> Event:
 
 def update_event(db: Session, event_id: int, event_in) -> Event:
     event = get_event_by_id(db, event_id)
-    update_data = event_in.model_dump(exclude_unset=True)
+    update_data = event_in.dict(exclude_unset=True)
     for field, value in update_data.items():
         setattr(event, field, value)
     db.commit()

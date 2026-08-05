@@ -14,6 +14,8 @@ class Group(Base, TimestampMixin):
     start_year = Column(Integer, nullable=False)
     end_year = Column(Integer, nullable=False)
     is_active = Column(Boolean, default=True)
+    group_type = Column(String(20), default='budget', nullable=False) 
+    
 
     # Отношения
     college = relationship("College", back_populates="groups")

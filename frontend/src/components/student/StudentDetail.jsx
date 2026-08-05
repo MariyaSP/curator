@@ -10,7 +10,7 @@ import './StudentDetail.css'
 import downloadIcon from '../../assets/icons/download.png'
 import achievementsIcon from '../../assets/icons/achievements.png'
 import contestsIcon from '../../assets/icons/contests.png'
-import heroIcon from '../../assets/icons/hero.png'
+// import heroIcon from '../../assets/icons/hero.png'
 import viewIcon from '../../assets/icons/view.png'
 
 import AddCompetitionModal from './AddCompetitionModal'
@@ -108,12 +108,9 @@ const StudentDetail = ({ studentId }) => {
   const [contests, setContests] = useState([])
   const [documents, setDocuments] = useState([])
 
-  // 🟢 Состояния для достижений
   const [viewAchievement, setViewAchievement] = useState(null)
-  const [showCompetitionModal, setShowCompetitionModal] = useState(false)
   const [viewContest, setViewContest] = useState(null)
-
-  const openContestView = (contest) => setViewContest(contest)
+  const [showCompetitionModal, setShowCompetitionModal] = useState(false)
 
   useEffect(() => {
     const fetchReferences = async () => {
@@ -147,7 +144,9 @@ const StudentDetail = ({ studentId }) => {
         setStudent({
           ...studentData,
           photo: studentData.photo ? `http://localhost:8000${studentData.photo}?v=${Date.now()}` : null
-})
+        })
+        setPhotoVersion(Date.now())
+        
         setEditData({
           ...studentData,
           social_status_id: studentData.social_status_id 
@@ -162,7 +161,6 @@ const StudentDetail = ({ studentId }) => {
         setContests(studentData.competitions || [])
         setDocuments(studentData.documents || [])
         setError(null)
-        console.log('📦 studentData.competitions:', studentData.competitions)
       } catch (err) {
         console.error('Ошибка загрузки студента:', err)
         setError('Не удалось загрузить данные студента')
@@ -309,8 +307,8 @@ const StudentDetail = ({ studentId }) => {
 
   const handleUpdateFamily = (updatedMembers) => setFamilyMembers(updatedMembers)
 
-  // 🟢 Обработчики достижений
   const openAchievementView = (achievement) => setViewAchievement(achievement)
+  const openContestView = (contest) => setViewContest(contest)
 
   const handleDeleteAchievement = async (achievementId) => {
     setConfirmConfig({
@@ -319,6 +317,7 @@ const StudentDetail = ({ studentId }) => {
         try {
           await api.delete(`/students/${studentId}/achievements/${achievementId}`)
           setAchievements(achievements.filter(a => a.id !== achievementId))
+          setViewAchievement(null)
           setShowConfirm(false)
         } catch (err) { console.error('Ошибка удаления достижения:', err); setShowConfirm(false) }
       }
@@ -334,6 +333,7 @@ const StudentDetail = ({ studentId }) => {
         try {
           await api.delete(`/competitions/participants/${participantId}`)
           setContests(contests.filter(c => c.id !== participantId))
+          setViewContest(null)
           setShowConfirm(false)
         } catch (err) {
           console.error('Ошибка удаления конкурса:', err)
@@ -343,6 +343,7 @@ const StudentDetail = ({ studentId }) => {
     })
     setShowConfirm(true)
   }
+
   const handleAddAchievement = async (formData) => {
     try {
       const fd = new FormData()
@@ -360,23 +361,6 @@ const StudentDetail = ({ studentId }) => {
       console.error('Ошибка добавления достижения:', err)
       alert(err.response?.data?.detail || 'Не удалось добавить достижение')
     }
-  }
-
-  const handleAddItem = (type, data) => {
-    const newId = Date.now()
-    if (type === 'contest') setContests([...contests, { id: newId, ...data }])
-  }
-
-  const handleDeleteItem = (type, id) => {
-    setConfirmConfig({
-      title: 'Удаление', message: 'Вы уверены?',
-      onConfirm: () => {
-        if (type === 'contest') setContests(contests.filter(c => c.id !== id))
-        else if (type === 'document') setDocuments(documents.filter(d => d.id !== id))
-        setShowConfirm(false)
-      }
-    })
-    setShowConfirm(true)
   }
 
   const openAddModal = (type) => { setAddModalType(type); setShowAddModal(true) }
@@ -413,7 +397,7 @@ const StudentDetail = ({ studentId }) => {
     }
   }
 
-const handleSave = async () => {
+  const handleSave = async () => {
     if (!validateForm()) {
       const firstErrorField = Object.keys(fieldErrors)[0]
       if (firstErrorField) {
@@ -457,8 +441,9 @@ const handleSave = async () => {
       setStudent(prev => ({ ...prev, ...response.data }))
       setFamilyMembers(response.data.family_members || [])
       setDocuments(response.data.documents || [])
-      setAchievements(response.data.achievements || [])  // ← добавить
-      setContests(response.data.competitions || [])       // ← добавить
+      setAchievements(response.data.achievements || [])
+      setContests(response.data.competitions || [])
+      setPhotoVersion(Date.now())
       setIsEditMode(false)
       setFieldErrors({})
     } catch (err) {
@@ -474,7 +459,7 @@ const handleSave = async () => {
     }
   }
 
-const handleCancel = () => {
+  const handleCancel = () => {
     setEditData({
       ...student,
       social_status_id: student.social_status_id || (socialStatuses.find(s => s.code === 'full')?.id) || '',
@@ -482,8 +467,9 @@ const handleCancel = () => {
     })
     setFamilyMembers(student.family_members || [])
     setDocuments(student.documents || [])
-    setAchievements(student.achievements || [])   // ← добавить
-    setContests(student.competitions || [])       // ← добавить
+    setAchievements(student.achievements || [])
+    setContests(student.competitions || [])
+    setPhotoVersion(Date.now())
     setFieldErrors({})
     setIsEditMode(false)
   }
@@ -491,30 +477,29 @@ const handleCancel = () => {
   const handleUploadClick = () => fileInputRef.current?.click()
 
   const handleFileChange = async (e) => {
-      const file = e.target.files?.[0]
-      if (!file) return
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-      if (!allowedTypes.includes(file.type)) { alert('❌ Разрешены только изображения (JPEG, PNG, GIF, WEBP)'); return }
-      if (file.size > 5 * 1024 * 1024) { alert('❌ Файл слишком большой. Максимальный размер: 5 МБ'); return }
-      setIsUploadingPhoto(true)
-      try {
-        const formData = new FormData()
-        formData.append('photo', file)
-        const response = await api.post(`/students/${studentId}/photo`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        })
-        // Добавляем timestamp для сброса кэша
-        const newPhotoUrl = `http://localhost:8000${response.data.photo_url}?v=${Date.now()}`
-        setStudent({ ...student, photo: newPhotoUrl })
-        setPhotoVersion(Date.now())
-        setEditData(prev => ({ ...prev, photo: response.data.photo_url }))
-      } catch (err) {
-        console.error('❌ Ошибка загрузки фото:', err)
-        alert(`❌ ${err.response?.data?.detail || 'Не удалось загрузить фото'}`)
-      } finally { 
-        setIsUploadingPhoto(false)
-        if (fileInputRef.current) fileInputRef.current.value = ''
-      }
+    const file = e.target.files?.[0]
+    if (!file) return
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+    if (!allowedTypes.includes(file.type)) { alert('❌ Разрешены только изображения (JPEG, PNG, GIF, WEBP)'); return }
+    if (file.size > 5 * 1024 * 1024) { alert('❌ Файл слишком большой. Максимальный размер: 5 МБ'); return }
+    setIsUploadingPhoto(true)
+    try {
+      const formData = new FormData()
+      formData.append('photo', file)
+      const response = await api.post(`/students/${studentId}/photo`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      const newPhotoUrl = `http://localhost:8000${response.data.photo_url}?v=${Date.now()}`
+      setStudent({ ...student, photo: newPhotoUrl })
+      setPhotoVersion(Date.now())
+      setEditData(prev => ({ ...prev, photo: response.data.photo_url }))
+    } catch (err) {
+      console.error('❌ Ошибка загрузки фото:', err)
+      alert(`❌ ${err.response?.data?.detail || 'Не удалось загрузить фото'}`)
+    } finally { 
+      setIsUploadingPhoto(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   const handlePrint = () => {
@@ -530,6 +515,7 @@ const handleCancel = () => {
       }
       return dateStr
     }
+
     
   const printHTML = `
     <!DOCTYPE html>
@@ -753,6 +739,7 @@ const handleCancel = () => {
   printWindow.document.close()
 }
 
+  
   const passportString = () => {
     if (!student) return '—'
     const parts = []
@@ -788,10 +775,10 @@ const handleCancel = () => {
   if (!student) return <div className="error">Студент не найден</div>
 
   const photoUrl = student?.photo 
-      ? student.photo.includes('?v=') 
-        ? student.photo 
-        : `http://localhost:8000${student.photo}?v=${photoVersion}` 
-      : DEFAULT_PHOTO_URL
+    ? student.photo.includes('?v=') 
+      ? student.photo 
+      : `http://localhost:8000${student.photo}?v=${photoVersion}` 
+    : DEFAULT_PHOTO_URL
 
   return (
     <div className={`student-detail ${isEditMode ? 'edit-mode' : ''}`}>
@@ -821,11 +808,11 @@ const handleCancel = () => {
           <div className="photo-group">{student.group_name || '—'} · {getSpecialtyName()}</div>
           <div className="photo-curator">Куратор: {getCuratorName()}</div>
           <div style={{ display: 'flex', gap: '10px', marginTop: '10px', justifyContent: 'center' }}>
-          {isEditMode && (
-            <button className="photo-upload-btn" onClick={handleUploadClick} disabled={isUploadingPhoto}>
-              {isUploadingPhoto ? '⏳ Загрузка...' : '📷 Загрузить фото'}
-            </button>
-          )}
+            {isEditMode && (
+              <button className="photo-upload-btn" onClick={handleUploadClick} disabled={isUploadingPhoto}>
+                {isUploadingPhoto ? '⏳ Загрузка...' : '📷 Загрузить фото'}
+              </button>
+            )}
             <button className="photo-upload-btn" onClick={handlePrint} style={{ background: '#6c757d', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '14px' }}>
               🖨️ Печать карточки
             </button>
@@ -1085,7 +1072,6 @@ const handleCancel = () => {
         </div>
       </div>
 
-      {/* 🟢 Модалка просмотра достижения */}
       {viewAchievement && (
         <div className="add-modal-overlay" onClick={() => setViewAchievement(null)}>
           <div className="achievement-detail-modal" onClick={(e) => e.stopPropagation()}>
@@ -1098,7 +1084,6 @@ const handleCancel = () => {
               <h2>{viewAchievement.title}</h2>
               <button className="add-modal-close" onClick={() => setViewAchievement(null)}>×</button>
             </div>
-            
             <div className="achievement-detail-body">
               <div className="achievement-detail-meta">
                 <div className="meta-item">
@@ -1106,14 +1091,12 @@ const handleCancel = () => {
                   <span className="meta-value">{new Date(viewAchievement.achievement_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                 </div>
               </div>
-              
               {viewAchievement.description && (
                 <div className="achievement-detail-description">
                   <span className="meta-label">Описание</span>
                   <p>{viewAchievement.description}</p>
                 </div>
               )}
-              
               {viewAchievement.file_path && (
                 <div className="achievement-detail-file">
                   <span className="meta-label">Прикреплённый файл</span>
@@ -1124,20 +1107,13 @@ const handleCancel = () => {
                         <span className="pdf-hint">Нажмите для просмотра</span>
                       </div>
                     ) : (
-                      <img 
-                        src={`http://localhost:8000/api/v1/students/${studentId}/achievements/${viewAchievement.id}/view`} 
-                        alt={viewAchievement.title}
-                        className="file-thumbnail-img"
-                      />
+                      <img src={`http://localhost:8000/api/v1/students/${studentId}/achievements/${viewAchievement.id}/view`} alt={viewAchievement.title} className="file-thumbnail-img" />
                     )}
-                    <div className="file-thumbnail-overlay">
-                      <span>🔍 Открыть</span>
-                    </div>
+                    <div className="file-thumbnail-overlay"><span>🔍 Открыть</span></div>
                   </div>
                 </div>
               )}
             </div>
-            
           </div>
         </div>
       )}
@@ -1157,7 +1133,6 @@ const handleCancel = () => {
               <h2>{viewContest.competition_title || '—'}</h2>
               <button className="add-modal-close" onClick={() => setViewContest(null)}>×</button>
             </div>
-            
             <div className="achievement-detail-body">
               <div className="achievement-detail-meta">
                 {viewContest.competition_date && (
@@ -1173,7 +1148,6 @@ const handleCancel = () => {
                   </div>
                 )}
               </div>
-              
               {viewContest.file_path && (
                 <div className="achievement-detail-file" style={{ marginTop: '16px' }}>
                   <span className="meta-label">Прикреплённый файл</span>
@@ -1184,11 +1158,7 @@ const handleCancel = () => {
                         <span className="pdf-hint">Нажмите для просмотра</span>
                       </div>
                     ) : (
-                      <img 
-                        src={`http://localhost:8000/api/v1/students/${studentId}/competitions/${viewContest.id}/view`} 
-                        alt={viewContest.competition_title}
-                        className="file-thumbnail-img"
-                      />
+                      <img src={`http://localhost:8000/api/v1/students/${studentId}/competitions/${viewContest.id}/view`} alt={viewContest.competition_title} className="file-thumbnail-img" />
                     )}
                     <div className="file-thumbnail-overlay"><span>🔍 Открыть</span></div>
                   </div>
@@ -1199,7 +1169,6 @@ const handleCancel = () => {
         </div>
       )}
 
-
       <ConfirmModal isOpen={showConfirm} onClose={() => setShowConfirm(false)} onConfirm={confirmConfig.onConfirm} title={confirmConfig.title} message={confirmConfig.message} />
       
       <AddCompetitionModal
@@ -1207,7 +1176,6 @@ const handleCancel = () => {
         onClose={() => setShowCompetitionModal(false)}
         studentId={studentId}
         onSuccess={() => {
-          // Обновить список конкурсов студента
           api.get(`/students/${studentId}`).then(res => {
             setContests(res.data.competitions || [])
           })
@@ -1217,7 +1185,6 @@ const handleCancel = () => {
       <AddModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} type={addModalType} onAdd={(data) => {
         if (addModalType === 'document') handleAddDocument(data)
         else if (addModalType === 'achievement') handleAddAchievement(data)
-        else handleAddItem(addModalType, data)
         setShowAddModal(false)
       }} />
     </div>

@@ -20,7 +20,7 @@ from .student import (
     CompetitionParticipantRead,
 )
 from .group import GroupBase, GroupCreate, GroupUpdate, GroupRead
-from .event import EventBase, EventCreate, EventUpdate, EventRead
+from .event import EventBase, EventCreate, EventUpdate, EventRead, EventCategoryRead
 from .auth import UserLogin, UserToken, PasswordResetRequest, PasswordResetConfirm
 from .competition import (
     CompetitionBase, CompetitionCreate, CompetitionUpdate, CompetitionRead,
@@ -70,4 +70,5 @@ __all__ = [
     "ReportTemplateBase", "ReportTemplateCreate", "ReportTemplateUpdate", "ReportTemplateRead",
     "GeneratedReportBase", "GeneratedReportCreate", "GeneratedReportRead",
     "ReportGenerateParams",
+    "EventCategoryRead"
 ]

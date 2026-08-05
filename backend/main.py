@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
+
 from app.api.v1 import (
     students_router,
     auth_router,
@@ -11,6 +12,7 @@ from app.api.v1 import (
     competitions_router,
     reports_router,
     users_router,
+    events_router,
 )
 
 app = FastAPI(
@@ -51,6 +53,7 @@ app.include_router(events_router, prefix="/api/v1")
 app.include_router(competitions_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")
 app.include_router(users_router, prefix="/api/v1")
+app.include_router(events_router, prefix="/api/v1")
 
 
 # ===== КОРНЕВЫЕ ЭНДПОИНТЫ =====
