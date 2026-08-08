@@ -24,8 +24,9 @@ const CalendarPage = () => {
   const [taskDesc, setTaskDesc] = useState('')
   const [filter, setFilter] = useState({})
   const [draggedEvent, setDraggedEvent] = useState(null)
+  const [taskRecurrence, setTaskRecurrence] = useState('')
+  const [taskRecurrenceEnd, setTaskRecurrenceEnd] = useState('')
 
-  // Загрузка категорий
   useEffect(() => { fetchCategories() }, [])
 
   const fetchCategories = async () => {
@@ -40,12 +41,9 @@ const CalendarPage = () => {
         const firstNonBirthday = res.data.find(c => c.name !== 'Дни рождения')
         setTaskCategory(firstNonBirthday ? firstNonBirthday.id : res.data[0].id)
       }
-    } catch (err) {
-      console.error('Ошибка загрузки категорий:', err)
-    }
+    } catch (err) { console.error('Ошибка загрузки категорий:', err) }
   }
 
-  // Загрузка событий
   useEffect(() => { if (categories.length > 0) fetchEvents() }, [currentMonth, currentYear, categories])
 
   const fetchEvents = async () => {
@@ -55,7 +53,6 @@ const CalendarPage = () => {
     } catch (err) { console.error('Ошибка загрузки событий:', err) }
   }
 
-  // Навигация
   const prevMonth = () => {
     if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1) }
     else setCurrentMonth(currentMonth - 1)
@@ -65,7 +62,6 @@ const CalendarPage = () => {
     else setCurrentMonth(currentMonth + 1)
   }
 
-  // Построение дней
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
   const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay()
   const startOffset = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1
@@ -81,7 +77,7 @@ const CalendarPage = () => {
   for (let i = 1; i <= daysInMonth; i++) {
     days.push({ day: i, month: 'current', date: `${currentYear}-${String(currentMonth + 1).padStart(2,'0')}-${String(i).padStart(2,'0')}` })
   }
-  const totalCells = Math.ceil(days.length / 5) * 5
+  const totalCells = Math.ceil(days.length / 7) * 7
   for (let i = days.length; i < totalCells; i++) {
     const d = i - days.length + 1
     const m = currentMonth === 11 ? 1 : currentMonth + 2
@@ -89,22 +85,32 @@ const CalendarPage = () => {
     days.push({ day: d, month: 'next', date: `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}` })
   }
 
-  // Хелперы
   const getCategoryById = (id) => categories.find(c => c.id === id)
 
-  // 🟢 ИСПРАВЛЕНО: фильтрация дней рождения через категорию из БД
   const getEventsForDate = (dateStr) => {
     const birthdayCat = categories.find(c => c.name === 'Дни рождения')
-    return events.filter(e => {
-      if (e.category === 'birthday') {
-        if (birthdayCat && !filter[birthdayCat.id]) return false
+    return events
+      .filter(e => {
+        if (e.category === 'birthday') {
+          if (birthdayCat && !filter[birthdayCat.id]) return false
+          return e.event_date === dateStr
+        }
+        if (e.is_completed && !filter.done) return false
+        if (!filter[e.category_id]) return false
         return e.event_date === dateStr
-      }
-      if (e.is_completed && !filter.done) return false
-      if (!filter[e.category_id]) return false
-      return e.event_date === dateStr
-    })
+      })
+      .sort((a, b) => {
+        // Дни рождения всегда сверху
+        if (a.category === 'birthday') return -1
+        if (b.category === 'birthday') return 1
+        // Сортируем по времени
+        if (a.start_time && b.start_time) return a.start_time.localeCompare(b.start_time)
+        if (a.start_time) return -1
+        if (b.start_time) return 1
+        return 0
+      })
   }
+  
 
   const getCategoryStyle = (catId, isCompleted, catName) => {
     if (isCompleted) return 'done'
@@ -113,7 +119,6 @@ const CalendarPage = () => {
     return cat ? `cat-${cat.id}` : 'other'
   }
 
-  // Статистика
   const monthEvents = events.filter(e => {
     const d = new Date(e.event_date)
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear && e.category !== 'birthday'
@@ -124,7 +129,6 @@ const CalendarPage = () => {
   const todayEvents = events.filter(e => e.event_date === todayStr)
   const birthdays = events.filter(e => e.category === 'birthday' && new Date(e.event_date).getMonth() === currentMonth)
 
-  // Модалка
   const openModal = (date) => {
     setSelectedDate(date)
     setTaskTitle('')
@@ -137,16 +141,29 @@ const CalendarPage = () => {
     if (!taskTitle.trim()) return
     try {
       await api.post('/events/', {
-        title: taskTitle, event_date: selectedDate, start_time: taskTime,
-        category_id: taskCategory, description: taskDesc,
-        college_id: 1, curator_id: 1, academic_year_id: 1, event_type: 'OTHER',
+        title: taskTitle,
+        event_date: selectedDate,
+        start_time: taskTime || null,
+        category_id: taskCategory,
+        description: taskDesc || '',
+        college_id: 1,
+        curator_id: 1,
+        academic_year_id: 1,
+        event_type: 'OTHER',
+        is_recurring: taskRecurrence !== '',
+        recurrence_type: taskRecurrence || null,
+        recurrence_end_date: taskRecurrenceEnd || null,
       })
       setIsModalOpen(false)
+      setTaskRecurrence('')
+      setTaskRecurrenceEnd('')
       fetchEvents()
-    } catch (err) { console.error('Ошибка создания события:', err); alert('Не удалось создать событие') }
+    } catch (err) {
+      console.error('Ошибка создания события:', err)
+      alert('Не удалось создать событие')
+    }
   }
 
-  // Drag-and-drop
   const handleDragStart = (e, event) => { setDraggedEvent(event); e.dataTransfer.effectAllowed = 'move' }
   const handleDrop = async (e, dateStr) => {
     e.preventDefault()
@@ -179,7 +196,7 @@ const CalendarPage = () => {
           <button className="add-task-btn" onClick={() => openModal(todayStr)}>+ Добавить</button>
         </div>
 
-        <div className="weekdays-row"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span></div>
+        <div className="weekdays-row"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span></div>
 
         <div className="days-grid-5">
           {days.map((d, i) => {
@@ -190,18 +207,38 @@ const CalendarPage = () => {
                 onDoubleClick={() => d.month === 'current' && openModal(d.date)}
                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, d.date)}>
                 <div className="day-number">{d.day}{dayEvents.length > 0 && <span className="task-count">({dayEvents.length})</span>}</div>
-                {dayEvents.map(ev => (
-                  <div key={ev.id} className={`task-chip ${getCategoryStyle(ev.category_id, ev.is_completed, ev.category)}`}
+              {dayEvents.map(ev => {
+                const isNew = new Date(ev.created_at).getTime() > Date.now() - 24 * 60 * 60 * 1000
+                const catInfo = getCategoryById(ev.category_id)
+                return (
+                  <div
+                    key={ev.id}
+                    className={`task-chip ${getCategoryStyle(ev.category_id, ev.is_completed, ev.category)}`}
                     draggable={!ev.is_completed && ev.category !== 'birthday'}
                     onDragStart={(e) => handleDragStart(e, ev)}
-                    onClick={() => !ev.is_completed && ev.category !== 'birthday' && toggleComplete(ev)}
+                    onClick={() => ev.category !== 'birthday' && toggleComplete(ev)}
                     title={ev.title}
-                    style={getCategoryById(ev.category_id) ? { borderLeftColor: getCategoryById(ev.category_id)?.color } : {}}>
+                    style={!ev.is_completed && catInfo ? { borderLeftColor: catInfo.color } : {}}
+                  >
                     {ev.start_time && <span className="task-time">{ev.start_time?.slice(0,5)}</span>}
                     <span className="task-label">{ev.title}</span>
+                    {isNew && !ev.is_completed && ev.category !== 'birthday' && (
+                      <span className="bell-icon" style={{ color: catInfo?.color || '#5b8cff' }}>🔔</span>
+                    )}
                     {ev.is_completed && <span className="check-icon">✓</span>}
+                    {/* Тултип */}
+                    <div className="tooltip">
+                      <div className="tooltip-title">{ev.title}</div>
+                      {ev.description && <div className="tooltip-desc">{ev.description}</div>}
+                      <div className="tooltip-meta">
+                        {ev.start_time && <span>🕐 {ev.start_time?.slice(0,5)}</span>}
+                        <span>🏷️ {catInfo?.name || ev.category}</span>
+                        {ev.is_completed && <span>✅ Выполнено</span>}
+                      </div>
+                    </div>
                   </div>
-                ))}
+                )
+              })}
               </div>
             )
           })}
@@ -242,7 +279,6 @@ const CalendarPage = () => {
           )) : <div className="empty-text">Нет задач на сегодня</div>}
         </div>
 
-        {/* 🟢 ФИЛЬТРЫ: только категории из БД + статичный "Выполнено" */}
         <div className="side-card">
           <div className='side-card-title'><img src={filterIcon} alt="Фильтры" className="side-card-icon" /><h4> Фильтр</h4></div>
           {categories.map(cat => (
@@ -263,18 +299,55 @@ const CalendarPage = () => {
       {isModalOpen && (
         <div className="modal-overlay active" onClick={() => setIsModalOpen(false)}>
           <div className="modal-card" onClick={e => e.stopPropagation()}>
-            <h3>📝 Новое событие</h3>
-            <p className="modal-sub">Добавление на {selectedDate}</p>
-            <div className="form-group"><label>Название</label><input type="text" value={taskTitle} onChange={e => setTaskTitle(e.target.value)} placeholder="Введите название..." /></div>
-            <div className="form-group"><label>Время</label><input type="time" value={taskTime} onChange={e => setTaskTime(e.target.value)} /></div>
-            <div className="form-group"><label>Категория</label>
+            <h3>Новое событие</h3>
+
+            <div className="form-group">
+              <label>Название</label>
+              <input type="text" value={taskTitle} onChange={e => setTaskTitle(e.target.value)} placeholder="Введите название..." />
+            </div>
+
+            <div className="form-row">
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Дата</label>
+                <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} />
+              </div>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Время</label>
+                <input type="time" value={taskTime} onChange={e => setTaskTime(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Категория</label>
               <select value={taskCategory} onChange={e => setTaskCategory(e.target.value)}>
                 {categories.filter(c => c.name !== 'Дни рождения').map(cat => (
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
             </div>
-            <div className="form-group"><label>Описание</label><textarea value={taskDesc} onChange={e => setTaskDesc(e.target.value)} placeholder="Дополнительная информация..." rows={3} /></div>
+
+            <div className="form-group">
+              <label>Описание</label>
+              <textarea value={taskDesc} onChange={e => setTaskDesc(e.target.value)} placeholder="Дополнительная информация..." rows={2} />
+            </div>
+
+            <div className="form-row">
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Повторять</label>
+                <select value={taskRecurrence} onChange={e => setTaskRecurrence(e.target.value)}>
+                  <option value="">Не повторять</option>
+                  <option value="WEEKLY">Еженедельно</option>
+                  <option value="MONTHLY">Ежемесячно</option>
+                </select>
+              </div>
+              {taskRecurrence && (
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>До даты</label>
+                  <input type="date" value={taskRecurrenceEnd} onChange={e => setTaskRecurrenceEnd(e.target.value)} />
+                </div>
+              )}
+            </div>
+
             <div className="modal-actions">
               <button className="btn-cancel" onClick={() => setIsModalOpen(false)}>Отмена</button>
               <button className="btn-save" onClick={addEvent}>Добавить</button>

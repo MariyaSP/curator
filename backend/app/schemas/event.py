@@ -87,3 +87,12 @@ class EventRead(BaseModel):
         if hasattr(v, 'value'):
             return v.value
         return v
+    
+    @field_validator('category', mode='before')
+    @classmethod
+    def convert_category(cls, v):
+        if v is None:
+            return None
+        if hasattr(v, 'name'):
+            return v.name
+        return v

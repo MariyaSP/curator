@@ -7,7 +7,7 @@
   background: #ffffff;
   border-radius: 12px;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.06);
-  overflow: hidden;
+  overflow: visible;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   min-height: calc(100vh - 48px);
 }
@@ -17,6 +17,7 @@
   padding: 32px 28px 32px 32px;
   background: white;
   min-width: 0;
+  overflow: visible;
 }
 
 .calendar-dashboard .calendar-topbar {
@@ -47,19 +48,39 @@
 .calendar-dashboard .nav-icon-right { transform: scaleX(-1); }
 
 .calendar-dashboard .weekdays-row {
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
   margin-bottom: 10px; font-weight: 500; color: #7b7d8d; font-size: 14px; text-align: center;
 }
 
+.calendar-dashboard .weekdays-row span:nth-child(6),
+.calendar-dashboard .weekdays-row span:nth-child(7) {
+  color: #d32f2f;
+}
+
 .calendar-dashboard .days-grid-5 {
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
+  display: grid; 
+  grid-template-columns: repeat(7, 1fr); 
+  gap: 6px;
+  overflow: visible;
 }
 
 .calendar-dashboard .day-cell {
-  background: #f9fafc; border-radius: 10px; min-height: 110px; padding: 10px 10px 8px 10px;
-  display: flex; flex-direction: column; border: 1px solid transparent; cursor: pointer;
+  background: #f9fafc; 
+  border-radius: 10px; 
+  min-height: 110px; 
+  padding: 10px 10px 8px 10px;
+  display: flex; 
+  flex-direction: column; 
+  border: 1px solid transparent; 
+  cursor: pointer;
+  overflow: visible;
+  position: relative;
+  z-index: 1;
 }
-.calendar-dashboard .day-cell:hover { background: #f2f4fa; }
+.calendar-dashboard .day-cell:hover { 
+  background: #f2f4fa; 
+  z-index: 10;
+}
 .calendar-dashboard .day-cell.other-month { opacity: 0.35; }
 .calendar-dashboard .day-cell.today { border: 2px solid #6c5ce7; background: #f8f6ff; }
 .calendar-dashboard .day-cell.today .day-number { color: #6c5ce7; font-weight: 700; }
@@ -68,19 +89,52 @@
 .calendar-dashboard .task-count { font-size: 11px; color: #7b7d8d; }
 
 .calendar-dashboard .task-chip {
-  background: white; border-radius: 8px; padding: 6px 10px; margin-bottom: 5px;
-  font-size: 11px; color: #1c1c2a; box-shadow: 0 2px 6px rgba(0,0,0,0.02);
-  border-left: 3px solid #6c5ce7; cursor: grab; word-break: break-word;
-  position: relative; padding-right: 28px; user-select: none;
+  background: white; 
+  border-radius: 8px; 
+  padding: 6px 10px; 
+  margin-bottom: 5px;
+  font-size: 11px; 
+  color: #1c1c2a; 
+  box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+  border-left: 3px solid #6c5ce7; 
+  cursor: grab; 
+  word-break: break-word;
+  position: relative; 
+  padding-right: 28px; 
+  user-select: none;
+  position: relative;
 }
 .calendar-dashboard .task-chip.group { border-left-color: #34c7a7; }
 .calendar-dashboard .task-chip.curator { border-left-color: #ffb347; }
 .calendar-dashboard .task-chip.report { border-left-color: #ff7eb3; }
 .calendar-dashboard .task-chip.other { border-left-color: #0f5663; }
 .calendar-dashboard .task-chip.birthday { border-left-color: #5b8cff; background: #f0f4ff; }
-.calendar-dashboard .task-chip.done { background: #e8eaed; border-left-color: #5f6368; color: #3c4043; opacity: 0.9; cursor: default; }
-.calendar-dashboard .task-chip .task-time { font-size: 10px; color: #8b8d9e; display: block; }
-.calendar-dashboard .task-chip .check-icon { position: absolute; top: 4px; right: 6px; font-size: 14px; color: #34a853; }
+.calendar-dashboard .task-chip.done { 
+  background: #e8eaed; 
+  border-left-color: #5f6368; 
+  color: #858d92; 
+  opacity: 0.9; 
+  cursor: default; 
+}
+.calendar-dashboard .task-chip .task-time { 
+  font-size: 10px; 
+  color: #80868b;; 
+  display: block; }
+.calendar-dashboard .task-chip .check-icon { 
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #3cb5a1;
+  color: #fff;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1; 
+}
 
 .calendar-dashboard .calendar-sidebar {
   width: 320px; background: #fafbfc; padding: 32px 24px;
@@ -172,6 +226,80 @@
   margin: 0 0 14px 0;
 }
 
+.form-row{
+  display: flex;
+  gap: 15px
+}
+
+/* ===== ТУЛТИП ===== */
+.calendar-dashboard .task-chip .tooltip {
+  visibility: hidden;
+  opacity: 0;
+  width: 220px;
+  background: #1e1e2a;
+  color: #fff;
+  text-align: left;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  position: absolute;
+  z-index: 100;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  transition: opacity 0.25s ease, visibility 0.25s ease, transform 0.25s ease;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  pointer-events: none;
+  font-weight: 400;
+}
+.calendar-dashboard .task-chip .tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #1e1e2a;
+  overflow: visible;
+}
+.calendar-dashboard .task-chip:hover .tooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(-2px);
+  z-index: 101;
+}
+.calendar-dashboard .task-chip .tooltip-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+.calendar-dashboard .task-chip .tooltip-desc {
+  color: #c0c4d0;
+  font-size: 11px;
+}
+.calendar-dashboard .task-chip .tooltip-meta {
+  margin-top: 6px;
+  font-size: 10px;
+  color: #8b8d9e;
+  display: flex;
+  gap: 12px;
+}
+
+/* ===== КОЛОКОЛЬЧИК ===== */
+.calendar-dashboard .task-chip .bell-icon {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 12px;
+  animation: pulse-bell 2s ease-in-out infinite;
+}
+
+@keyframes pulse-bell {
+  0%, 100% { opacity: 0.8; transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(-8deg) scale(1.05); }
+  75% { transform: rotate(8deg) scale(1.05); }
+}
 
 @media (max-width: 1024px) {
   .calendar-dashboard { flex-direction: column-reverse; }
