@@ -2,8 +2,12 @@ import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from '../components/auth/Login'
 import ProtectedRoute from '../components/common/ProtectedRoute'
-import AdminDashboard from '../pages/admin/AdminDashboard'
+import AdminLayout from '../layouts/AdminLayout'
 import CuratorLayout from '../layouts/CuratorLayout'
+import AdminCalendar from '../pages/admin/AdminCalendar'
+import AdminReferences from '../pages/admin/AdminReferences'
+import AdminStatistics from '../pages/admin/AdminStatistics'
+import AdminUsers from '../pages/admin/AdminUsers'
 import CuratorStudents from '../pages/curator/CuratorStudents'
 import StudentDetail from '../pages/curator/StudentDetail'
 import CuratorCalendar from '../pages/curator/CuratorCalendar'
@@ -21,10 +25,16 @@ const AppRouter = () => {
           path="/admin"
           element={
             <ProtectedRoute allowedRoles={[1]}>
-              <AdminDashboard />
+              <AdminLayout />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route index element={<Navigate to="/admin/calendar" replace />} />
+          <Route path="calendar" element={<AdminCalendar />} />
+          <Route path="references" element={<AdminReferences />} />
+          <Route path="statistics" element={<AdminStatistics />} />
+          <Route path="users" element={<AdminUsers />} />
+        </Route>
 
         <Route
           path="/curator"
