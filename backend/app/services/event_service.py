@@ -3,16 +3,16 @@ from fastapi import HTTPException, status
 from typing import List, Optional
 from datetime import date, timedelta
 import calendar
+import asyncio
 
 from app.models.event import Event
-from app.models.curator import Curator
 from app.models.event_category import EventCategory
+from app.models.event_participant import EventParticipant
+from app.core.websocket_manager import manager
 
 
 def get_events(
-        db: Session,
-        skip: int = 0,
-        limit: int = 15,
+        db: Session, skip: int = 0, limit: int = 15,
         curator_id: Optional[int] = None,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None
@@ -34,17 +34,13 @@ def get_event_by_id(db: Session, event_id: int) -> Event:
     return event
 
 
-def create_event(db: Session, event_in) -> Event:
-    curator = db.query(Curator).filter(Curator.id == event_in.curator_id).first()
-    if not curator:
-        raise HTTPException(status_code=404, detail="Куратор не найден")
-
-    category = db.query(EventCategory).filter(EventCategory.id == event_in.category_id).first()
+def create_event(db: Session, data: dict) -> Event:
+    category = db.query(EventCategory).filter(EventCategory.id == data.get('category_id')).first()
     if not category:
         raise HTTPException(status_code=404, detail="Категория не найдена")
 
-    data = event_in.dict()
-    data.pop('location', None)  # 🟢 убираем location для первого события
+    group_ids = data.pop('group_ids', [])
+    data.pop('location', None)
     
     is_recurring = data.get('is_recurring', False)
     recurrence_type = data.get('recurrence_type')
@@ -53,6 +49,10 @@ def create_event(db: Session, event_in) -> Event:
     first_event = Event(**data)
     db.add(first_event)
     db.flush()
+
+    for gid in group_ids:
+        participant = EventParticipant(event_id=first_event.id, group_id=gid)
+        db.add(participant)
 
     if is_recurring and recurrence_type and recurrence_end_date:
         current_date = data['event_date']
@@ -86,9 +86,29 @@ def create_event(db: Session, event_in) -> Event:
 
             recurring_event = Event(**recurring_data)
             db.add(recurring_event)
+            db.flush()
+            
+            for gid in group_ids:
+                participant = EventParticipant(event_id=recurring_event.id, group_id=gid)
+                db.add(participant)
 
     db.commit()
     db.refresh(first_event)
+    
+    try:
+        asyncio.create_task(manager.broadcast({
+            "type": "event_created",
+            "data": {
+                "id": first_event.id,
+                "title": first_event.title,
+                "event_date": str(first_event.event_date),
+                "category_id": first_event.category_id,
+                "is_completed": first_event.is_completed,
+            }
+        }))
+    except Exception:
+        pass
+    
     return first_event
 
 
@@ -107,6 +127,20 @@ def update_event(db: Session, event_id: int, event_in) -> Event:
         setattr(event, field, value)
     db.commit()
     db.refresh(event)
+    
+    try:
+        asyncio.create_task(manager.broadcast({
+            "type": "event_updated",
+            "data": {
+                "id": event.id,
+                "title": event.title,
+                "event_date": str(event.event_date),
+                "is_completed": event.is_completed,
+            }
+        }))
+    except Exception:
+        pass
+    
     return event
 
 
@@ -114,3 +148,11 @@ def delete_event(db: Session, event_id: int) -> None:
     event = get_event_by_id(db, event_id)
     db.delete(event)
     db.commit()
+    
+    try:
+        asyncio.create_task(manager.broadcast({
+            "type": "event_deleted",
+            "data": {"id": event_id}
+        }))
+    except Exception:
+        pass

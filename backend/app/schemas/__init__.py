@@ -32,6 +32,10 @@ from .report import (
     ReportGenerateParams
 )
 
+from .acyear import AcademicYearRead
+
+from .specialty import SpecialtyBase, SpecialtyCreate, SpecialtyUpdate, SpecialtyRead
+
 
 __all__ = [
     # Enums
@@ -70,5 +74,7 @@ __all__ = [
     "ReportTemplateBase", "ReportTemplateCreate", "ReportTemplateUpdate", "ReportTemplateRead",
     "GeneratedReportBase", "GeneratedReportCreate", "GeneratedReportRead",
     "ReportGenerateParams",
-    "EventCategoryRead"
+    "EventCategoryRead",
+    "AcademicYearRead",
+    "SpecialtyBase","SpecialtyCreate", "SpecialtyUpdate", "SpecialtyRead"
 ]

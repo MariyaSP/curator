@@ -1,25 +1,21 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional
 
-
 class SpecialtyBase(BaseModel):
-    college_id: int
-    code: str = Field(..., min_length=1, max_length=15)
-    name: str = Field(..., min_length=1, max_length=200)
-
+    code: Optional[str] = None
+    name: Optional[str] = None
+    is_active: Optional[bool] = True
 
 class SpecialtyCreate(SpecialtyBase):
+    code: str
+    name: str
+
+class SpecialtyUpdate(SpecialtyBase):
     pass
-
-
-class SpecialtyUpdate(BaseModel):
-    college_id: Optional[int] = None
-    code: Optional[str] = Field(None, min_length=1, max_length=15)
-    name: Optional[str] = Field(None, min_length=1, max_length=200)
-
 
 class SpecialtyRead(SpecialtyBase):
     id: int
-
+    college_id: Optional[int] = None
+    
     class Config:
         from_attributes = True

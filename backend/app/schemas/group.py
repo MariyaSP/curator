@@ -32,3 +32,10 @@ class GroupRead(GroupBase):
 
     class Config:
         from_attributes = True
+
+class SpecialtyRead(BaseModel):
+    id: int
+    name: str
+    code: str
+    is_active: Optional[bool] = True
+    class Config: from_attributes = True

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from .base import Base
 
@@ -10,6 +10,7 @@ class Specialty(Base):
     college_id = Column(Integer, ForeignKey("colleges.id", ondelete="CASCADE"), nullable=False)
     code = Column(String(15), unique=True, nullable=False, index=True)
     name = Column(String(200), nullable=False)
+    is_active = Column(Boolean, default=True)  # ← добавлено
 
     # Отношения
     college = relationship("College", back_populates="specialties")

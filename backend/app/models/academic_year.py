@@ -10,7 +10,7 @@ class AcademicYear(Base, TimestampMixin):
     name = Column(String(20), nullable=False)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
-    is_active = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)  # ← ИЗМЕНЕНО (было False)
 
     # Отношения
     college = relationship("College", back_populates="academic_years")

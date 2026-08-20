@@ -245,6 +245,7 @@ class HealthGroupRead(BaseModel):
     id: int
     code: str
     name: str
+    is_active: Optional[bool] = None
 
     class Config:
         from_attributes = True

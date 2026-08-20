@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy.orm import relationship
 from .base import Base
+
 
 class HealthGroup(Base):
     __tablename__ = "health_groups"
@@ -10,3 +11,4 @@ class HealthGroup(Base):
     name = Column(String(100), nullable=False)
 
     students = relationship("Student", back_populates="health_group")
+    is_active = Column(Boolean, default=True)

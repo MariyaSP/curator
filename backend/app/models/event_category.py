@@ -8,9 +8,9 @@ class EventCategory(Base, TimestampMixin):
     id = Column(Integer, primary_key=True, index=True)
     college_id = Column(Integer, ForeignKey("colleges.id"), nullable=False)
     name = Column(String(50), nullable=False)
-    color = Column(String(10), nullable=False)  # HEX-цвет
+    color = Column(String(10), nullable=False)
     is_active = Column(Boolean, default=True)
+    audience = Column(String(20), nullable=False, default='all')
 
-    # Отношения
     college = relationship("College")
     events = relationship("Event", back_populates="category")

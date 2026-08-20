@@ -62,16 +62,30 @@ const CalendarPage = () => {
   const fetchCategories = async () => {
     try {
       const res = await api.get('/events/categories')
-      setCategories(res.data)
+      let cats = res.data || []
+
+      // Фильтрация категорий по аудитории
+      if (userRole === 3) {
+        // Студент видит только категории "all"
+        cats = cats.filter(c => c.audience === 'all')
+      } else if (userRole === 2) {
+        // Куратор видит all, all_curators, groups, private
+        cats = cats.filter(c => ['all', 'all_curators', 'groups', 'private'].includes(c.audience))
+      }
+      // userRole === 1 (админ) видит все
+
+      setCategories(cats)
       const initialFilter = {}
-      res.data.forEach(cat => { initialFilter[cat.id] = true })
+      cats.forEach(cat => { initialFilter[cat.id] = true })
       initialFilter['done'] = true
       setFilter(initialFilter)
-      if (res.data.length > 0) {
-        const firstNonBirthday = res.data.find(c => c.name !== 'Дни рождения')
-        setTaskCategory(firstNonBirthday ? firstNonBirthday.id : res.data[0].id)
+      if (cats.length > 0) {
+        const firstNonBirthday = cats.find(c => c.name !== 'Дни рождения')
+        setTaskCategory(firstNonBirthday ? firstNonBirthday.id : cats[0].id)
       }
-    } catch (err) { console.error('Ошибка загрузки категорий:', err) }
+    } catch (err) {
+      console.error('Ошибка загрузки категорий:', err)
+    }
   }
 
   useEffect(() => { if (categories.length > 0) fetchEvents() }, [currentMonth, currentYear, categories])
@@ -80,16 +94,27 @@ const CalendarPage = () => {
     try {
       const res = await api.get('/events/', { params: { month: currentMonth + 1, year: currentYear, limit: 200 } })
       setEvents(res.data)
-    } catch (err) { console.error('Ошибка загрузки событий:', err) }
+    } catch (err) {
+      console.error('Ошибка загрузки событий:', err)
+    }
   }
 
   const prevMonth = () => {
-    if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1) }
-    else setCurrentMonth(currentMonth - 1)
+    if (currentMonth === 0) {
+      setCurrentMonth(11)
+      setCurrentYear(currentYear - 1)
+    } else {
+      setCurrentMonth(currentMonth - 1)
+    }
   }
+
   const nextMonth = () => {
-    if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(currentYear + 1) }
-    else setCurrentMonth(currentMonth + 1)
+    if (currentMonth === 11) {
+      setCurrentMonth(0)
+      setCurrentYear(currentYear + 1)
+    } else {
+      setCurrentMonth(currentMonth + 1)
+    }
   }
 
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
@@ -102,17 +127,17 @@ const CalendarPage = () => {
     const d = daysInPrevMonth - i
     const m = currentMonth === 0 ? 12 : currentMonth
     const y = currentMonth === 0 ? currentYear - 1 : currentYear
-    days.push({ day: d, month: 'prev', date: `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}` })
+    days.push({ day: d, month: 'prev', date: `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` })
   }
   for (let i = 1; i <= daysInMonth; i++) {
-    days.push({ day: i, month: 'current', date: `${currentYear}-${String(currentMonth + 1).padStart(2,'0')}-${String(i).padStart(2,'0')}` })
+    days.push({ day: i, month: 'current', date: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}` })
   }
   const totalCells = Math.ceil(days.length / 7) * 7
   for (let i = days.length; i < totalCells; i++) {
     const d = i - days.length + 1
     const m = currentMonth === 11 ? 1 : currentMonth + 2
     const y = currentMonth === 11 ? currentYear + 1 : currentYear
-    days.push({ day: d, month: 'next', date: `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}` })
+    days.push({ day: d, month: 'next', date: `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` })
   }
 
   const getCategoryById = (id) => categories.find(c => c.id === id)
@@ -146,11 +171,11 @@ const CalendarPage = () => {
     return cat ? `cat-${cat.id}` : 'other'
   }
 
- const canModify = (ev) => {
-  if (ev.category === 'birthday') return false
-  if (ev.is_completed) return false
-  return ev.created_by === user?.id
-}
+  const canModify = (ev) => {
+    if (ev.category === 'birthday') return false
+    if (ev.is_completed) return false
+    return ev.created_by === user?.id
+  }
 
   const monthEvents = events.filter(e => {
     const d = new Date(e.event_date)
@@ -172,7 +197,7 @@ const CalendarPage = () => {
       setEditEventId(event.id)
       setTaskTitle(event.title || '')
       setTaskDesc(event.description || '')
-      setTaskTime(event.start_time?.slice(0,5) || '09:00')
+      setTaskTime(event.start_time?.slice(0, 5) || '09:00')
       setTaskCategory(event.category_id || '')
       setTaskVisibility(event.visibility || 'private')
       setTaskRecurrence(event.recurrence_type || '')
@@ -191,31 +216,48 @@ const CalendarPage = () => {
 
   const saveEvent = async () => {
     if (!taskTitle.trim()) return
-    try {
-      const payload = {
-        title: taskTitle,
-        event_date: selectedDate,
-        start_time: taskTime || null,
-        category_id: taskCategory,
-        description: taskDesc || '',
-        visibility: taskVisibility,
-        event_type: 'OTHER',
-        is_recurring: taskRecurrence !== '',
-        recurrence_type: taskRecurrence || null,
-        recurrence_end_date: taskRecurrenceEnd || null,
+
+    const originalEvent = editEventId ? events.find(e => e.id === editEventId) : null
+    const visibilityChanged = originalEvent && originalEvent.visibility !== taskVisibility
+
+    const doSave = async () => {
+      try {
+        const payload = {
+          title: taskTitle,
+          event_date: selectedDate,
+          start_time: taskTime || null,
+          category_id: taskCategory,
+          description: taskDesc || '',
+          visibility: taskVisibility,
+          event_type: 'OTHER',
+          is_recurring: taskRecurrence !== '',
+          recurrence_type: taskRecurrence || null,
+          recurrence_end_date: taskRecurrenceEnd || null,
+        }
+        if (editEventId) {
+          await api.put(`/events/${editEventId}`, payload)
+        } else {
+          await api.post('/events/', payload)
+        }
+        setIsModalOpen(false)
+        setEditEventId(null)
+        setTaskRecurrence('')
+        setTaskRecurrenceEnd('')
+      } catch (err) {
+        console.error('Ошибка сохранения события:', err)
+        setInfoModal({ isOpen: true, title: 'Ошибка', message: 'Не удалось сохранить событие' })
       }
-      if (editEventId) {
-        await api.put(`/events/${editEventId}`, payload)
-      } else {
-        await api.post('/events/', payload)
-      }
-      setIsModalOpen(false)
-      setEditEventId(null)
-      setTaskRecurrence('')
-      setTaskRecurrenceEnd('')
-    } catch (err) {
-      console.error('Ошибка сохранения события:', err)
-      setInfoModal({ isOpen: true, title: 'Ошибка', message: 'Не удалось сохранить событие' })
+    }
+
+    if (visibilityChanged) {
+      setInfoModal({
+        isOpen: true,
+        title: 'Изменение видимости',
+        message: `Изменить видимость события с «${originalEvent.visibility}» на «${taskVisibility}»?`,
+        onConfirm: doSave
+      })
+    } else {
+      await doSave()
     }
   }
 
@@ -233,7 +275,9 @@ const CalendarPage = () => {
         try {
           await api.delete(`/events/${eventId}`)
           fetchEvents()
-        } catch (err) { console.error('Ошибка удаления события:', err) }
+        } catch (err) {
+          console.error('Ошибка удаления события:', err)
+        }
         setInfoModal({ isOpen: false })
       }
     })
@@ -259,7 +303,9 @@ const CalendarPage = () => {
       try {
         await api.put(`/events/${draggedEvent.id}`, { event_date: dateStr })
         fetchEvents()
-      } catch (err) { console.error('Ошибка перемещения события:', err) }
+      } catch (err) {
+        console.error('Ошибка перемещения события:', err)
+      }
     }
     setDraggedEvent(null)
   }
@@ -269,7 +315,9 @@ const CalendarPage = () => {
     try {
       await api.put(`/events/${event.id}`, { is_completed: !event.is_completed })
       fetchEvents()
-    } catch (err) { console.error('Ошибка обновления события:', err) }
+    } catch (err) {
+      console.error('Ошибка обновления события:', err)
+    }
   }
 
   return (
@@ -291,9 +339,13 @@ const CalendarPage = () => {
             const dayEvents = getEventsForDate(d.date)
             const isToday = d.date === todayStr
             return (
-              <div key={i} className={`day-cell ${d.month !== 'current' ? 'other-month' : ''} ${isToday ? 'today' : ''}`}
+              <div
+                key={i}
+                className={`day-cell ${d.month !== 'current' ? 'other-month' : ''} ${isToday ? 'today' : ''}`}
                 onDoubleClick={() => d.month === 'current' && openModal(d.date)}
-                onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, d.date)}>
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => handleDrop(e, d.date)}
+              >
                 <div className="day-number">{d.day}{dayEvents.length > 0 && <span className="task-count">({dayEvents.length})</span>}</div>
                 {dayEvents.map(ev => {
                   const isNew = new Date(ev.created_at).getTime() > Date.now() - 24 * 60 * 60 * 1000
@@ -313,17 +365,22 @@ const CalendarPage = () => {
                       {isNew && !ev.is_completed && ev.category !== 'birthday' && (
                         <span className="bell-icon" style={{ color: catInfo?.color || '#5b8cff' }}>🔔</span>
                       )}
-                      {ev.start_time && <span className="task-time">{ev.start_time?.slice(0,5)}</span>}
+                      {ev.start_time && <span className="task-time">{ev.start_time?.slice(0, 5)}</span>}
                       <span className="task-label">{ev.title}</span>
                       {ev.is_completed && <span className="check-icon">✓</span>}
                       {modify && (
-                        <span className="delete-event-btn" onClick={(e) => { e.stopPropagation(); deleteEvent(ev.id) }}>✕</span>
+                        <span
+                          className="delete-event-btn"
+                          onClick={(e) => { e.stopPropagation(); deleteEvent(ev.id) }}
+                        >
+                          ✕
+                        </span>
                       )}
                       <div className="tooltip">
                         <div className="tooltip-title">{ev.title}</div>
                         {ev.description && <div className="tooltip-desc">{ev.description}</div>}
                         <div className="tooltip-meta">
-                          {ev.start_time && <span>🕐 {ev.start_time?.slice(0,5)}</span>}
+                          {ev.start_time && <span>🕐 {ev.start_time?.slice(0, 5)}</span>}
                           <span>🏷️ {catInfo?.name || ev.category}</span>
                           {ev.is_completed && <span>✅ Выполнено</span>}
                         </div>
@@ -339,7 +396,10 @@ const CalendarPage = () => {
 
       <aside className="calendar-sidebar">
         <div className="side-card">
-          <div className='side-card-title'><img src={chartIcon} alt="Статистика" className="side-card-icon" /><h4> Статистика за месяц</h4></div>
+          <div className='side-card-title'>
+            <img src={chartIcon} alt="Статистика" className="side-card-icon" />
+            <h4> Статистика за месяц</h4>
+          </div>
           <div className="stats-grid">
             <div className="stat-block"><span className="stat-number green">{doneCount}</span><span className="stat-label">Выполнено</span></div>
             <div className="stat-block"><span className="stat-number blue">{plannedCount}</span><span className="stat-label">Запланировано</span></div>
@@ -348,7 +408,10 @@ const CalendarPage = () => {
         </div>
 
         <div className="side-card">
-          <div className='side-card-title'><img src={bdIcon} alt="Дни рождения" className="side-card-icon" /><h4> Дни рождения</h4></div>
+          <div className='side-card-title'>
+            <img src={bdIcon} alt="Дни рождения" className="side-card-icon" />
+            <h4> Дни рождения</h4>
+          </div>
           {birthdays.slice(0, 4).map(ev => (
             <div key={ev.id} className="birthday-row">
               <div className="birthday-avatar">{new Date(ev.event_date).getDate()}</div>
@@ -359,10 +422,13 @@ const CalendarPage = () => {
         </div>
 
         <div className="side-card">
-          <div className='side-card-title'><img src={taskIcon} alt="Задачи на сегодня" className="side-card-icon" /><h4> Задачи на сегодня</h4></div>
+          <div className='side-card-title'>
+            <img src={taskIcon} alt="Задачи на сегодня" className="side-card-icon" />
+            <h4> Задачи на сегодня</h4>
+          </div>
           {todayEvents.length > 0 ? todayEvents.map(ev => (
             <div key={ev.id} className={`today-task ${ev.is_completed ? 'done' : ''}`}>
-              {ev.start_time && <span className="today-time">{ev.start_time?.slice(0,5)}</span>}
+              {ev.start_time && <span className="today-time">{ev.start_time?.slice(0, 5)}</span>}
               <span className="today-text" style={ev.is_completed ? { textDecoration: 'line-through' } : {}}>{ev.title}</span>
               <span className={`task-tag ${getCategoryStyle(ev.category_id, ev.is_completed, ev.category)}`}>
                 {ev.is_completed ? 'Выполнено' : getCategoryById(ev.category_id)?.name || ev.category}
@@ -372,16 +438,27 @@ const CalendarPage = () => {
         </div>
 
         <div className="side-card">
-          <div className='side-card-title'><img src={filterIcon} alt="Фильтры" className="side-card-icon" /><h4> Фильтр</h4></div>
+          <div className='side-card-title'>
+            <img src={filterIcon} alt="Фильтры" className="side-card-icon" />
+            <h4> Фильтр</h4>
+          </div>
           {categories.map(cat => (
             <label key={cat.id} className={`legend-item ${!filter[cat.id] ? 'muted' : ''}`}>
-              <input type="checkbox" checked={filter[cat.id] || false} onChange={() => setFilter(prev => ({ ...prev, [cat.id]: !prev[cat.id] }))} />
+              <input
+                type="checkbox"
+                checked={filter[cat.id] || false}
+                onChange={() => setFilter(prev => ({ ...prev, [cat.id]: !prev[cat.id] }))}
+              />
               <span className="legend-dot" style={{ backgroundColor: cat.color }}></span>
               {cat.name}
             </label>
           ))}
           <label className={`legend-item ${!filter.done ? 'muted' : ''}`}>
-            <input type="checkbox" checked={filter.done || false} onChange={() => setFilter(prev => ({ ...prev, done: !prev.done }))} />
+            <input
+              type="checkbox"
+              checked={filter.done || false}
+              onChange={() => setFilter(prev => ({ ...prev, done: !prev.done }))}
+            />
             <span className="legend-dot" style={{ backgroundColor: '#e8eaed', border: '1px solid #5f6368' }}></span>
             Выполнено
           </label>
@@ -392,12 +469,28 @@ const CalendarPage = () => {
         <div className="modal-overlay active" onClick={() => setIsModalOpen(false)}>
           <div className="modal-card" onClick={e => e.stopPropagation()}>
             <h3>{editEventId ? 'Редактировать событие' : 'Новое событие'}</h3>
-            <div className="form-group"><label>Название</label><input type="text" value={taskTitle} onChange={e => setTaskTitle(e.target.value)} placeholder="Введите название..." /></div>
-            <div className="form-row">
-              <div className="form-group" style={{ flex: 1 }}><label>Дата</label><input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} /></div>
-              <div className="form-group" style={{ flex: 1 }}><label>Время</label><input type="time" value={taskTime} onChange={e => setTaskTime(e.target.value)} /></div>
+            <div className="form-group">
+              <label>Название</label>
+              <input type="text" value={taskTitle} onChange={e => setTaskTitle(e.target.value)} placeholder="Введите название..." />
             </div>
-            <div className="form-group"><label>Категория</label><select value={taskCategory} onChange={e => setTaskCategory(e.target.value)}>{categories.filter(c => c.name !== 'Дни рождения').map(cat => (<option key={cat.id} value={cat.id}>{cat.name}</option>))}</select></div>
+            <div className="form-row">
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Дата</label>
+                <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} />
+              </div>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Время</label>
+                <input type="time" value={taskTime} onChange={e => setTaskTime(e.target.value)} />
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Категория</label>
+              <select value={taskCategory} onChange={e => setTaskCategory(e.target.value)}>
+                {categories.filter(c => c.name !== 'Дни рождения').map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
             <div className="form-group">
               <label>Видимость</label>
               <select value={taskVisibility} onChange={e => setTaskVisibility(e.target.value)}>
@@ -409,10 +502,25 @@ const CalendarPage = () => {
                 {userRole === 1 && <option value="all">Все</option>}
               </select>
             </div>
-            <div className="form-group"><label>Описание</label><textarea value={taskDesc} onChange={e => setTaskDesc(e.target.value)} placeholder="Дополнительная информация..." rows={2} /></div>
+            <div className="form-group">
+              <label>Описание</label>
+              <textarea value={taskDesc} onChange={e => setTaskDesc(e.target.value)} placeholder="Дополнительная информация..." rows={2} />
+            </div>
             <div className="form-row">
-              <div className="form-group" style={{ flex: 1 }}><label>Повторять</label><select value={taskRecurrence} onChange={e => setTaskRecurrence(e.target.value)}><option value="">Не повторять</option><option value="WEEKLY">Еженедельно</option><option value="MONTHLY">Ежемесячно</option></select></div>
-              {taskRecurrence && <div className="form-group" style={{ flex: 1 }}><label>До даты</label><input type="date" value={taskRecurrenceEnd} onChange={e => setTaskRecurrenceEnd(e.target.value)} /></div>}
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Повторять</label>
+                <select value={taskRecurrence} onChange={e => setTaskRecurrence(e.target.value)}>
+                  <option value="">Не повторять</option>
+                  <option value="WEEKLY">Еженедельно</option>
+                  <option value="MONTHLY">Ежемесячно</option>
+                </select>
+              </div>
+              {taskRecurrence && (
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>До даты</label>
+                  <input type="date" value={taskRecurrenceEnd} onChange={e => setTaskRecurrenceEnd(e.target.value)} />
+                </div>
+              )}
             </div>
             <div className="modal-actions">
               <button className="btn-cancel" onClick={() => setIsModalOpen(false)}>Отмена</button>
