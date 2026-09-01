@@ -1,6 +1,7 @@
+# backend/app/schemas/event.py
 from pydantic import BaseModel, Field, field_validator
 from datetime import date, datetime, time
-from typing import Optional
+from typing import Optional, List, Union
 from .enums import EventType, RecurrenceType
 
 class EventCategoryRead(BaseModel):
@@ -31,7 +32,7 @@ class EventBase(BaseModel):
     recurrence_type: Optional[RecurrenceType] = None
     recurrence_end_date: Optional[date] = None
     location: Optional[str] = Field(None, max_length=200)
-    visibility: Optional[str] = 'private'
+    visibility: Optional[List[str]] = ['private']
 
 class EventCreate(EventBase):
     pass
@@ -49,8 +50,7 @@ class EventUpdate(BaseModel):
     recurrence_type: Optional[RecurrenceType] = None
     recurrence_end_date: Optional[date] = None
     location: Optional[str] = Field(None, max_length=200)
-    is_completed: Optional[bool] = None
-    visibility: Optional[str] = None
+    visibility: Optional[List[str]] = None
 
 class EventRead(BaseModel):
     id: int
@@ -67,11 +67,11 @@ class EventRead(BaseModel):
     end_time: Optional[time] = None
     event_type: str
     is_recurring: bool = False
-    recurrence_type: Optional[str] = None
+    recurrence_type: Optional[str] = None  # ← Оставляем str
     recurrence_end_date: Optional[date] = None
     location: Optional[str] = None
-    is_completed: bool = False
-    visibility: Optional[str] = None
+    visibility: Optional[List[str]] = None
+    is_completed_by_current_user: Optional[bool] = False
     category: Optional[str] = None
     category_color: Optional[str] = None
     created_at: datetime
@@ -83,18 +83,39 @@ class EventRead(BaseModel):
     @field_validator('event_type', mode='before')
     @classmethod
     def convert_enum_to_str(cls, v):
-        if hasattr(v, 'value'): return v.value
-        return v
+        if v is None:
+            return None
+        if hasattr(v, 'value'):
+            return v.value
+        return str(v) if v else None
 
     @field_validator('recurrence_type', mode='before')
     @classmethod
     def convert_recurrence_enum(cls, v):
-        if hasattr(v, 'value'): return v.value
-        return v
+        if v is None:
+            return None
+        if hasattr(v, 'value'):
+            return v.value
+        if isinstance(v, str):
+            return v
+        return str(v) if v else None
 
     @field_validator('category', mode='before')
     @classmethod
     def convert_category(cls, v):
-        if v is None: return None
-        if hasattr(v, 'name'): return v.name
-        return v
+        if v is None:
+            return None
+        if hasattr(v, 'name'):
+            return v.name
+        return str(v) if v else None
+
+    @field_validator('visibility', mode='before')
+    @classmethod
+    def convert_visibility(cls, v):
+        if v is None:
+            return []
+        if isinstance(v, str):
+            return [v]
+        if isinstance(v, list):
+            return v
+        return []

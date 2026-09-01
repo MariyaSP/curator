@@ -37,4 +37,4 @@ class User(Base, TimestampMixin):
 
     # Метод для красивого отображения в логах
     def __repr__(self):
-        return f"<User(id={self.id}, email={self.email}, role={self.role})>"
+        return f"<User(id={self.id}, email={self.email}, role={self.role})>"git add 
